@@ -1,0 +1,19 @@
+# Pure-Python dependencies only - nothing here needs a C or C++ compiler, so the
+# install works on any platform and any Python 3.11+ without build tools.
+# Verified on Python 3.11 through 3.14.
+fastapi>=0.115
+uvicorn>=0.34
+sqlalchemy>=2.0.36
+pydantic>=2.10
+email-validator>=2.2
+python-multipart>=0.0.20
+PyJWT>=2.10
+
+# Optional: enables transformer embeddings (SBERT) for descriptive grading instead
+# of the built-in TF-IDF. Large download (~500 MB with PyTorch) and needs wheels
+# for your Python version. The system detects it at runtime and falls back
+# automatically - check GET /api/health to see which backend is live.
+# sentence-transformers>=3.3
+
+# Optional: PostgreSQL driver
+# psycopg[binary]>=3.2
