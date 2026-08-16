@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import owns_or_controls, require_controller, require_ownership, require_staff
 from ..models import Answer, Assessment, Question, User
-from ..schemas import QuestionAdminOut, QuestionCreate
+from ..importer import extract_questions, extract_text
+from ..schemas import (
+    ImportCommitIn, ImportPreviewIn, ImportPreviewOut, QuestionAdminOut, QuestionCreate
+)
 
 router = APIRouter(prefix="/api/questions", tags=["questions"])
 
@@ -109,6 +112,99 @@ def create_question(
     db.commit()
     db.refresh(question)
     return _with_author(question)
+
+
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+
+
+def _preview(text: str, default_marks: float) -> ImportPreviewOut:
+    drafts, backend, note = extract_questions(text, default_marks)
+    if not drafts:
+        # Report why nothing came back. Defaulting to a formatting complaint hides
+        # the common case - the AI reader failed and the fallback cannot cope with
+        # this layout - and sends the examiner to fix a document that is fine.
+        if backend == "rules" and "unavailable" in note:
+            raise HTTPException(400, f"{note} That parser needs questions numbered 'Q1.' or '1)'.")
+        raise HTTPException(
+            400,
+            "No questions found in that document. Questions should start with a number, "
+            "like 'Q1.' or '1)'.",
+        )
+    return ImportPreviewOut(
+        questions=drafts,
+        total=len(drafts),
+        needs_attention=sum(1 for d in drafts if d["warnings"]),
+        source_characters=len(text),
+        backend=backend,
+        note=note,
+    )
+
+
+@router.post("/import/file", response_model=ImportPreviewOut)
+async def import_file(
+    file: UploadFile = File(...),
+    default_marks: float = 5.0,
+    _=Depends(require_staff),
+):
+    """Read a question paper and return drafts for review. Nothing is saved here.
+
+    Extraction from a human-formatted document is guesswork, and a mis-read
+    answer key would mark correct work wrong at scale. So this endpoint only
+    proposes; /import/commit is what writes, and only after an examiner has
+    looked at every question.
+    """
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "That file is larger than 5 MB.")
+    if not data:
+        raise HTTPException(400, "That file is empty.")
+
+    try:
+        text = extract_text(file.filename or "", data)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    return _preview(text, default_marks)
+
+
+@router.post("/import/text", response_model=ImportPreviewOut)
+def import_text(payload: ImportPreviewIn, _=Depends(require_staff)):
+    """Same as /import/file, for questions pasted straight in."""
+    if not payload.text.strip():
+        raise HTTPException(400, "Paste some questions first.")
+    return _preview(payload.text, payload.default_marks)
+
+
+@router.post("/import/commit", response_model=list[QuestionAdminOut], status_code=201)
+def import_commit(
+    payload: ImportCommitIn, db: Session = Depends(get_db), user: User = Depends(require_staff)
+):
+    """Save reviewed questions into the bank, all or nothing.
+
+    A partial import would leave an examiner unsure which questions made it, so
+    a single invalid question rolls the whole batch back with its position named.
+    """
+    if not payload.questions:
+        raise HTTPException(400, "No questions to save.")
+
+    created: list[Question] = []
+    for position, item in enumerate(payload.questions, start=1):
+        item.skill = payload.skill
+        try:
+            _validate(item)
+            _check_subject(item, user)
+        except HTTPException as exc:
+            db.rollback()
+            raise HTTPException(exc.status_code, f"Question {position}: {exc.detail}") from exc
+
+        question = Question(**item.model_dump(), created_by=user.id)
+        db.add(question)
+        created.append(question)
+
+    db.commit()
+    for question in created:
+        db.refresh(question)
+    return [_with_author(q) for q in created]
 
 
 # Declared before /{question_id}: FastAPI matches routes in definition order, so

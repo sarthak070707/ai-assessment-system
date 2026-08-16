@@ -23,10 +23,15 @@ export default function TakeTest() {
     api.startAttempt(assessmentId).then(setSession).catch((e) => setError(e.message))
   }, [assessmentId])
 
-  useProctor(session?.attempt?.id, { onFlag: () => setFlags((n) => n + 1) })
-
   const questions = session?.questions ?? []
   const question = questions[index]
+
+  // Declared after `question`: hooks run in order, and reading it above would
+  // hit the temporal dead zone on a const declared further down.
+  useProctor(session?.attempt?.id, {
+    onFlag: () => setFlags((n) => n + 1),
+    questionId: question?.id,
+  })
 
   const recordTime = useCallback(() => {
     if (!question) return
@@ -66,7 +71,7 @@ export default function TakeTest() {
   if (error) {
     return (
       <div style={{ maxWidth: 520, margin: '4rem auto', padding: '0 1.5rem' }}>
-        <h1>Can't load this assessment</h1>
+        <h1>{error.includes('already submitted') ? 'Already submitted' : "Can't load this assessment"}</h1>
         <p className="muted" style={{ marginTop: '.5rem' }}>{error}</p>
         <button className="btn-ghost" style={{ marginTop: '1rem' }} onClick={() => navigate('/')}>
           Back to assessments
@@ -100,7 +105,14 @@ export default function TakeTest() {
                 {answered}/{questions.length}
               </span>
             </div>
-            <Timer totalSeconds={session.assessment.duration_minutes * 60} onExpire={submit} />
+            {/* Remaining time comes from the server, computed from when the
+                attempt began. Deriving it here from the duration meant a reload
+                handed the candidate a fresh clock. */}
+            <Timer
+              totalSeconds={session.assessment.duration_minutes * 60}
+              secondsRemaining={session.assessment.seconds_remaining}
+              onExpire={submit}
+            />
           </div>
         </div>
       </header>

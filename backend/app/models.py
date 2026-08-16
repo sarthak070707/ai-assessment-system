@@ -101,11 +101,24 @@ class Assessment(Base):
 
 
 class Attempt(Base):
+    """One sitting of one paper by one candidate.
+
+    Tied to the access code that opened it, not just to the paper. A candidate
+    gets one attempt per code: submitting ends that sitting for good, and a
+    re-sit requires the invigilator to issue a fresh code. This is how an
+    invigilated exam already works — a machine dies, the candidate is re-admitted
+    with a new slip — and it means "no retakes" does not need a separate override
+    that could be misused.
+    """
+
     __tablename__ = "attempts"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     assessment_id: Mapped[int] = mapped_column(ForeignKey("assessments.id"))
+    access_code_id: Mapped[int | None] = mapped_column(
+        ForeignKey("exam_access_codes.id"), nullable=True
+    )
     status: Mapped[str] = mapped_column(String(20), default="in_progress")
     started_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -174,12 +187,21 @@ class ExamAccessCode(Base):
 
 
 class ProctorEvent(Base):
+    """One integrity signal, tied to the question that was on screen.
+
+    A bare count tells an examiner something happened but not what or where.
+    Three tab switches spread evenly across a paper reads very differently from
+    three during one hard question, and only the second is worth asking about.
+    """
+
     __tablename__ = "proctor_events"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     attempt_id: Mapped[int] = mapped_column(ForeignKey("attempts.id"))
+    question_id: Mapped[int | None] = mapped_column(ForeignKey("questions.id"), nullable=True)
     event_type: Mapped[str] = mapped_column(String(40))
     detail: Mapped[str] = mapped_column(String(255), default="")
+    seconds_into_attempt: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     attempt: Mapped["Attempt"] = relationship(back_populates="events")

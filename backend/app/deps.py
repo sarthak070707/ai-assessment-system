@@ -82,6 +82,12 @@ def exam_claim(token: str = Depends(oauth2_scheme)) -> int | None:
     return payload.get("exam")
 
 
+def code_claim(token: str = Depends(oauth2_scheme)) -> int | None:
+    """The access code that opened this session, if any."""
+    payload = decode_access_token(token) or {}
+    return payload.get("code")
+
+
 def require_exam_access(assessment_id: int, claim: int | None) -> None:
     """A candidate token opens exactly the paper its code was issued for.
 

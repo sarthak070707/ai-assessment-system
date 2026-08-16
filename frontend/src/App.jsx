@@ -1,10 +1,12 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { getUser } from './api.js'
 import Shell from './components/Shell.jsx'
+import Landing from './pages/Landing.jsx'
 import Login from './pages/Login.jsx'
 import AdminLogin from './pages/AdminLogin.jsx'
 import Candidates from './pages/Candidates.jsx'
 import Staff from './pages/Staff.jsx'
+import ImportQuestions from './pages/ImportQuestions.jsx'
 import SetPassword from './pages/SetPassword.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import TakeTest from './pages/TakeTest.jsx'
@@ -27,19 +29,31 @@ function Protected({ children, staffOnly = false, controllerOnly = false }) {
   return children
 }
 
+/** Bare '/' shows the portal chooser to visitors and the dashboard to anyone signed in. */
+function Home() {
+  const user = getUser()
+  if (!user) return <Navigate to="/welcome" replace />
+  if (user.must_change_password) return <Navigate to="/set-password" replace />
+  return <Dashboard />
+}
+
 export default function App() {
   return (
     <Routes>
+      {/* Front door for anyone not signed in; signed-in users go to their own
+          dashboard instead, so the chooser never interrupts a working session. */}
+      <Route path="/welcome" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/admin" element={<AdminLogin />} />
       <Route path="/set-password" element={<SetPassword />} />
       {/* The test screen sits outside the shell: no nav to click away to. */}
       <Route path="/test/:assessmentId" element={<Protected><TakeTest /></Protected>} />
       <Route element={<Shell />}>
-        <Route path="/" element={<Protected><Dashboard /></Protected>} />
+        <Route path="/" element={<Home />} />
         <Route path="/result/:attemptId" element={<Protected><Result /></Protected>} />
         <Route path="/review" element={<Protected staffOnly><Review /></Protected>} />
         <Route path="/questions" element={<Protected staffOnly><QuestionBank /></Protected>} />
+        <Route path="/questions/import" element={<Protected staffOnly><ImportQuestions /></Protected>} />
         <Route path="/assessments" element={<Protected staffOnly><Assessments /></Protected>} />
         <Route path="/candidates" element={<Protected staffOnly><Candidates /></Protected>} />
         <Route path="/staff" element={<Protected controllerOnly><Staff /></Protected>} />

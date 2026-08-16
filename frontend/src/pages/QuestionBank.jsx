@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api, getUser } from '../api.js'
 import QuestionEditor from '../components/QuestionEditor.jsx'
 
@@ -81,7 +82,10 @@ export default function QuestionBank() {
               : `You write within ${(me?.subjects || []).join(' and ') || 'no assigned subject'}. Only you and the exam office can see these.`}
           </p>
         </div>
-        <button className="btn-primary" onClick={() => setEditing('new')}>New question</button>
+        <div className="row" style={{ gap: '.5rem' }}>
+          <Link to="/questions/import"><button className="btn-ghost">Import from paper</button></Link>
+          <button className="btn-primary" onClick={() => setEditing('new')}>New question</button>
+        </div>
       </div>
 
       {error && <Banner tone="alert">{error}</Banner>}

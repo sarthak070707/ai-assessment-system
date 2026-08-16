@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api.js'
 
 /** Examiner portal, deliberately distinct from the candidate entrance. */
@@ -26,6 +26,8 @@ export default function AdminLogin() {
     <div style={{ minHeight: '100vh', background: 'var(--ink)' }}>
       <div className="row" style={{ minHeight: '100vh', justifyContent: 'center', padding: '2rem' }}>
         <div style={{ width: '100%', maxWidth: 380 }}>
+          <Link to="/welcome" className="eyebrow" style={{ textDecoration: 'none', color: '#6B7480' }}>← Back</Link>
+          <div style={{ height: '.6rem' }} />
           <span className="eyebrow" style={{ color: '#8C96A5' }}>Staff access</span>
           <h1 style={{ marginTop: '.35rem', color: '#fff' }}>Examiner portal</h1>
           <p className="small" style={{ color: '#8C96A5', marginTop: '.4rem', marginBottom: '1.5rem' }}>
@@ -60,10 +62,7 @@ export default function AdminLogin() {
             </button>
           </div>
 
-          <p className="small" style={{ color: '#6B7480', marginTop: '1rem' }}>
-            Candidates sit exams at <span className="mono">/#/login</span> using an enrolment
-            number and exam code.
-          </p>
+
         </div>
       </div>
     </div>

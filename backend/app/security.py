@@ -28,7 +28,9 @@ def verify_password(password: str, stored: str) -> bool:
         return False
 
 
-def create_access_token(user_id: int, role: str, exam_id: int | None = None) -> str:
+def create_access_token(
+    user_id: int, role: str, exam_id: int | None = None, code_id: int | None = None
+) -> str:
     """Issue a session token.
 
     A candidate token carries the assessment it was issued for. That claim is
@@ -39,6 +41,10 @@ def create_access_token(user_id: int, role: str, exam_id: int | None = None) -> 
     payload = {"sub": str(user_id), "role": role, "exp": expire}
     if exam_id is not None:
         payload["exam"] = exam_id
+    if code_id is not None:
+        # Which code opened this session. One sitting per code, so the attempt is
+        # bound to it rather than to the paper.
+        payload["code"] = code_id
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 

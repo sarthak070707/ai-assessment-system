@@ -3,7 +3,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..deps import current_user, owns_or_controls, require_ownership, require_staff
+from ..deps import (
+    code_claim, current_user, exam_claim, owns_or_controls, require_ownership, require_staff
+)
 from ..models import Assessment, Attempt, Question, User
 from ..schemas import AssessmentCreate, AssessmentOut
 
@@ -17,14 +19,51 @@ def _with_author(a: Assessment) -> AssessmentOut:
 
 
 @router.get("", response_model=list[AssessmentOut])
-def list_assessments(db: Session = Depends(get_db), user: User = Depends(current_user)):
-    """Candidates see published papers. Examiners see only their own. The office sees all."""
+def list_assessments(
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+    exam: int | None = Depends(exam_claim),
+    code_id: int | None = Depends(code_claim),
+):
+    """Candidates see published papers. Examiners see only their own. The office sees all.
+
+    For a candidate each paper also carries whether *this session* can sit it.
+    Working that out in the browser is not possible: it depends on which code
+    opened the session, and the browser only knows which papers exist. Deciding
+    it here is also what stops the page offering a button that would be refused.
+    """
     stmt = select(Assessment).order_by(Assessment.id)
     if user.role == "candidate":
         stmt = stmt.where(Assessment.is_published.is_(True))
     elif user.role == "examiner":
         stmt = stmt.where(Assessment.created_by == user.id)
-    return [_with_author(a) for a in db.scalars(stmt).all()]
+
+    papers = [_with_author(a) for a in db.scalars(stmt).all()]
+    if user.role != "candidate":
+        return papers
+
+    for paper in papers:
+        # A candidate token is scoped to one paper; the rest are visible but shut.
+        paper.opens_with_your_code = exam is None or exam == paper.id
+
+        paper.sitting_used = db.scalar(
+            select(Attempt.id).where(
+                Attempt.user_id == user.id,
+                Attempt.assessment_id == paper.id,
+                Attempt.status == "submitted",
+                Attempt.access_code_id == code_id,
+            ).limit(1)
+        ) is not None
+
+        paper.in_progress = db.scalar(
+            select(Attempt.id).where(
+                Attempt.user_id == user.id,
+                Attempt.assessment_id == paper.id,
+                Attempt.status == "in_progress",
+            ).limit(1)
+        ) is not None
+
+    return papers
 
 
 @router.get("/{assessment_id}", response_model=AssessmentOut)

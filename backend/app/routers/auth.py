@@ -121,7 +121,9 @@ def exam_login(payload: ExamLogin, request: Request, db: Session = Depends(get_d
     db.commit()
 
     return Token(
-        access_token=create_access_token(user.id, user.role, exam_id=record.assessment_id),
+        access_token=create_access_token(
+            user.id, user.role, exam_id=record.assessment_id, code_id=record.id
+        ),
         user=UserOut.model_validate(user),
     )
 

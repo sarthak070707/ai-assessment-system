@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, engine
 from .evaluation import semantic
+from . import llm
 from .routers import analytics, assessments, attempts, auth, candidates, questions, staff
 
 Base.metadata.create_all(bind=engine)
@@ -36,4 +37,9 @@ for router in (
 def health():
     """Reports which semantic backend is live, so you can tell at a glance whether
     SBERT loaded or the system fell back to TF-IDF."""
-    return {"status": "ok", "semantic_backend": semantic.backend_name()}
+    return {
+        "status": "ok",
+        "semantic_backend": semantic.backend_name(),
+        "import_backend": "groq" if llm.is_configured() else "rules",
+        "llm_model": llm.model_name() if llm.is_configured() else None,
+    }

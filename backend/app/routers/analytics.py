@@ -8,9 +8,27 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import current_user, require_staff
-from ..models import Answer, Assessment, Attempt, Question, User
+from ..models import Answer, Assessment, Attempt, ProctorEvent, Question, User
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
+
+# Plain-language labels. "tab_switch" is a log entry; "Left the exam tab" is what
+# an examiner needs to read at a glance while deciding whether to act.
+EVENT_LABELS = {
+    "tab_switch": "Left the exam tab",
+    "window_blur": "Switched to another window",
+    "fullscreen_exit": "Left full screen",
+    "paste": "Pasted text into an answer",
+    "late_submission": "Submitted after the deadline",
+}
+
+
+def _describe(event_type: str) -> str:
+    return EVENT_LABELS.get(event_type, event_type.replace("_", " ").capitalize())
+
+
+def _clock(seconds: int) -> str:
+    return f"{seconds // 60}:{seconds % 60:02d}"
 
 
 @router.get("/attempt/{attempt_id}")
@@ -25,6 +43,15 @@ def attempt_analytics(
         if paper and paper.created_by != user.id:
             raise HTTPException(404, "Attempt not found.")
 
+    # Group events by question first, so each row of the breakdown can carry its
+    # own flags rather than the examiner cross-referencing a separate list.
+    events = attempt.events
+    per_question: dict[int | None, list] = defaultdict(list)
+    by_type: dict[str, int] = defaultdict(int)
+    for event in events:
+        per_question[event.question_id].append(event)
+        by_type[event.event_type] += 1
+
     buckets: dict[str, dict] = defaultdict(lambda: {"earned": 0.0, "possible": 0.0, "seconds": 0})
     timeline = []
     for answer in attempt.answers:
@@ -33,6 +60,7 @@ def attempt_analytics(
         bucket["earned"] += answer.score
         bucket["possible"] += question.max_score
         bucket["seconds"] += answer.seconds_spent
+        flags = per_question.get(question.id, [])
         timeline.append({
             "question_id": question.id,
             "skill": question.skill,
@@ -43,6 +71,15 @@ def attempt_analytics(
             "seconds_spent": answer.seconds_spent,
             "confidence": answer.confidence,
             "needs_review": answer.needs_review,
+            "flags": [
+                {
+                    "type": e.event_type,
+                    "label": _describe(e.event_type),
+                    "detail": e.detail,
+                    "at": _clock(e.seconds_into_attempt),
+                }
+                for e in flags
+            ],
         })
 
     skills = [
@@ -72,6 +109,23 @@ def attempt_analytics(
         "percentile": percentile,
         "cohort_size": len(peers),
         "integrity_flags": attempt.integrity_flags,
+        "integrity": {
+            "total": len(events),
+            "by_type": [
+                {"type": t, "label": _describe(t), "count": n}
+                for t, n in sorted(by_type.items(), key=lambda kv: -kv[1])
+            ],
+            # Events raised while no question was on screen - between questions,
+            # or before the first one loaded.
+            "unattributed": [
+                {
+                    "label": _describe(e.event_type),
+                    "detail": e.detail,
+                    "at": _clock(e.seconds_into_attempt),
+                }
+                for e in per_question.get(None, [])
+            ],
+        },
         "skills": skills,
         "timeline": timeline,
         "recommendations": [

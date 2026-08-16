@@ -5,8 +5,10 @@ import { useEffect, useState } from 'react'
  * across the top of the viewport. Colour shifts at 25% and 10% remaining so
  * time pressure is visible peripherally, without the candidate watching digits.
  */
-export default function Timer({ totalSeconds, onExpire }) {
-  const [left, setLeft] = useState(totalSeconds)
+export default function Timer({ totalSeconds, secondsRemaining, onExpire }) {
+  // totalSeconds sets the scale of the hairline; secondsRemaining is the truth
+  // about how much is left, and comes from the server.
+  const [left, setLeft] = useState(secondsRemaining ?? totalSeconds)
 
   useEffect(() => {
     if (left <= 0) { onExpire(); return }

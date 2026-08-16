@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api.js'
 
 /** Candidate portal. Enrolment number plus the single-use code for today's paper. */
@@ -28,6 +28,8 @@ export default function Login() {
   return (
     <div className="row" style={{ minHeight: '100vh', justifyContent: 'center', padding: '2rem' }}>
       <div style={{ width: '100%', maxWidth: 400 }}>
+        <Link to="/welcome" className="eyebrow" style={{ textDecoration: 'none' }}>← Back</Link>
+        <div style={{ height: '.6rem' }} />
         <span className="eyebrow">Examination portal</span>
         <h1 style={{ marginTop: '.35rem' }}>Sign in to your exam</h1>
         <p className="muted small" style={{ marginTop: '.4rem', marginBottom: '1.5rem' }}>

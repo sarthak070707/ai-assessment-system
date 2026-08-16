@@ -9,8 +9,13 @@ import { api } from '../api.js'
  * into the answer area. Deliberately does not block the candidate; it records,
  * and the examiner decides what the pattern means.
  */
-export default function useProctor(attemptId, { enabled = true, onFlag } = {}) {
+export default function useProctor(attemptId, { enabled = true, onFlag, questionId } = {}) {
   const lastFlag = useRef(0)
+  // Held in a ref because the listeners are registered once; reading the prop
+  // directly would capture whichever question was on screen at mount and
+  // attribute every later event to it.
+  const currentQuestion = useRef(questionId)
+  currentQuestion.current = questionId
 
   useEffect(() => {
     if (!enabled || !attemptId) return
@@ -20,7 +25,7 @@ export default function useProctor(attemptId, { enabled = true, onFlag } = {}) {
       if (now - lastFlag.current < 800) return // collapse duplicate blur/visibility pairs
       lastFlag.current = now
       onFlag?.(type)
-      api.logEvent(attemptId, type, detail)
+      api.logEvent(attemptId, type, detail, currentQuestion.current)
     }
 
     const onVisibility = () => { if (document.hidden) report('tab_switch', 'Tab hidden') }

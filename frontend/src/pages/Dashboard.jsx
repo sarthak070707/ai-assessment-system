@@ -124,13 +124,19 @@ function CandidateHome() {
       <div>
         <span className="eyebrow">Candidate</span>
         <h1 style={{ marginTop: '.3rem' }}>Available assessments</h1>
+        <p className="muted small" style={{ marginTop: '.4rem' }}>
+          Your exam code opens one paper, once. Others are listed but closed to this sitting.
+        </p>
       </div>
 
       {error && <p style={{ color: 'var(--alert)' }}>{error}</p>}
 
       <div className="stack" style={{ gap: '.75rem' }}>
         {assessments.map((a) => (
-          <div key={a.id} className="panel spread" style={{ padding: '1.1rem 1.25rem', gap: '1rem' }}>
+          <div key={a.id} className="panel spread" style={{
+            padding: '1.1rem 1.25rem', gap: '1rem',
+            opacity: a.opens_with_your_code ? 1 : 0.55,
+          }}>
             <div>
               <h2>{a.title}</h2>
               <p className="small muted" style={{ margin: '.3rem 0 .5rem' }}>{a.description}</p>
@@ -138,9 +144,29 @@ function CandidateHome() {
                 {a.question_ids.length} questions · {a.duration_minutes} min
               </span>
             </div>
-            <button className="btn-primary" onClick={() => navigate(`/test/${a.id}`)}>
-              Start assessment
-            </button>
+            {/* The server decides all three states: only it knows which code
+                opened this session. The page just renders the verdict. */}
+            {!a.opens_with_your_code ? (
+              <div className="stack" style={{ alignItems: 'flex-end', gap: '.3rem' }}>
+                <span className="tag" style={{ borderColor: 'var(--rule)', color: 'var(--ink-3)' }}>
+                  not this sitting
+                </span>
+                <span className="small muted" style={{ maxWidth: 220, textAlign: 'right' }}>
+                  Your code opens a different paper.
+                </span>
+              </div>
+            ) : a.sitting_used ? (
+              <div className="stack" style={{ alignItems: 'flex-end', gap: '.3rem' }}>
+                <span className="tag tag-verdict">submitted</span>
+                <span className="small muted" style={{ maxWidth: 220, textAlign: 'right' }}>
+                  Ask your invigilator for a new code if you need to sit it again.
+                </span>
+              </div>
+            ) : (
+              <button className="btn-primary" onClick={() => navigate(`/test/${a.id}`)}>
+                {a.in_progress ? 'Resume assessment' : 'Start assessment'}
+              </button>
+            )}
           </div>
         ))}
         {!assessments.length && !error && (

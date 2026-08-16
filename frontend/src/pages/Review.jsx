@@ -79,6 +79,17 @@ export default function Review() {
               <span className="mono">{row.max_score}</span>. {row.feedback}
             </p>
 
+            {row.integrity_flags?.length > 0 && (
+              <div className="row" style={{ gap: '.4rem', flexWrap: 'wrap' }}>
+                <span className="eyebrow" style={{ color: '#8A5610' }}>While answering this:</span>
+                {row.integrity_flags.map((f, i) => (
+                  <span key={i} className="tag tag-signal">
+                    {f.type.replace(/_/g, ' ')}{f.detail ? ` · ${f.detail}` : ''}
+                  </span>
+                ))}
+              </div>
+            )}
+
             <div className="row" style={{ gap: '.75rem', flexWrap: 'wrap' }}>
               <label className="stack" style={{ gap: '.25rem', width: 110 }}>
                 <span className="eyebrow">Final score</span>

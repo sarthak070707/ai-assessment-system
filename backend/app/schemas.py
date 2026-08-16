@@ -139,6 +139,40 @@ class QuestionAdminOut(QuestionOut):
     rubric_keywords: list | None = None
 
 
+class ImportPreviewIn(BaseModel):
+    """Pasted text, as an alternative to uploading a file."""
+    text: str
+    default_marks: float = 5.0
+
+
+class ImportedQuestion(BaseModel):
+    source_number: int
+    kind: str
+    prompt: str
+    options: list[str] = []
+    correct_option: int | None = None
+    reference_answer: str = ""
+    rubric_keywords: list[str] = []
+    max_score: float
+    difficulty: str
+    warnings: list[str] = []
+
+
+class ImportPreviewOut(BaseModel):
+    questions: list[ImportedQuestion]
+    total: int
+    needs_attention: int
+    source_characters: int
+    backend: str = "rules"
+    note: str = ""
+
+
+class ImportCommitIn(BaseModel):
+    """Questions the examiner has reviewed and is ready to save."""
+    skill: str
+    questions: list[QuestionCreate]
+
+
 class AssessmentCreate(BaseModel):
     title: str
     description: str = ""
@@ -151,6 +185,14 @@ class AssessmentOut(BaseModel):
     id: int
     created_by: int | None = None
     author_name: str | None = None
+
+    # Candidate-facing state for the current session. Computed server-side
+    # because only the server knows which code opened this session; the browser
+    # can only see which papers exist.
+    opens_with_your_code: bool = True
+    sitting_used: bool = False
+    in_progress: bool = False
+
     title: str
     description: str
     duration_minutes: int
@@ -172,6 +214,15 @@ class SubmitIn(BaseModel):
 class ProctorEventIn(BaseModel):
     event_type: str
     detail: str = ""
+    question_id: int | None = None
+
+
+class ProctorEventOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    event_type: str
+    detail: str
+    question_id: int | None = None
+    seconds_into_attempt: int = 0
 
 
 class AnswerOut(BaseModel):

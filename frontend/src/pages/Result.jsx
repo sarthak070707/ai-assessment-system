@@ -40,6 +40,38 @@ export default function Result() {
         />
       </div>
 
+      {data.integrity?.total > 0 && (
+        <section className="panel stack" style={{ padding: '1.25rem', gap: '.75rem', borderLeft: '3px solid var(--signal)' }}>
+          <div className="spread">
+            <h2>Integrity events</h2>
+            <span className="mono small muted">{data.integrity.total} recorded</span>
+          </div>
+          <p className="small muted" style={{ margin: 0 }}>
+            These are recorded, not penalised. An examiner decides what a pattern means.
+          </p>
+
+          <div className="row" style={{ gap: '.5rem', flexWrap: 'wrap' }}>
+            {data.integrity.by_type.map((row) => (
+              <span key={row.type} className="tag tag-signal">
+                {row.label} · {row.count}
+              </span>
+            ))}
+          </div>
+
+          {data.integrity.unattributed.length > 0 && (
+            <div className="stack" style={{ gap: '.25rem' }}>
+              <span className="eyebrow">Between questions</span>
+              {data.integrity.unattributed.map((e, i) => (
+                <span key={i} className="small muted">
+                  <span className="mono">{e.at}</span> — {e.label}
+                  {e.detail && <span className="muted"> ({e.detail})</span>}
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       {flagged.length > 0 && (
         <div className="panel" style={{ padding: '1rem 1.25rem', borderLeft: '3px solid var(--signal)' }}>
           <span className="eyebrow" style={{ color: '#8A5610' }}>Provisional score</span>
@@ -96,6 +128,9 @@ export default function Result() {
                   <span className="small muted">{t.skill} · {t.difficulty}</span>
                 </div>
                 <div className="row" style={{ gap: '1rem' }}>
+                  {t.flags?.length > 0 && (
+                    <span className="tag tag-signal">{t.flags.length} flagged</span>
+                  )}
                   {t.needs_review && <span className="tag tag-signal">held for review</span>}
                   {answer.similarity_flag >= 0.85 && <span className="tag tag-alert">similarity {Math.round(answer.similarity_flag * 100)}%</span>}
                   <span className="mono small muted">{formatTime(t.seconds_spent)}</span>
@@ -120,6 +155,23 @@ export default function Result() {
 
               {answer.feedback && (
                 <p className="small muted" style={{ margin: '.7rem 0 0' }}>{answer.feedback}</p>
+              )}
+
+              {t.flags?.length > 0 && (
+                <div className="stack" style={{
+                  gap: '.25rem', marginTop: '.7rem', paddingTop: '.7rem',
+                  borderTop: '1px solid var(--rule-soft)',
+                }}>
+                  <span className="eyebrow" style={{ color: '#8A5610' }}>
+                    {t.flags.length} integrity {t.flags.length === 1 ? 'event' : 'events'} on this question
+                  </span>
+                  {t.flags.map((f, fi) => (
+                    <span key={fi} className="small" style={{ color: 'var(--ink-2)' }}>
+                      <span className="mono muted">{f.at}</span> — {f.label}
+                      {f.detail && <span className="muted"> ({f.detail})</span>}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           )

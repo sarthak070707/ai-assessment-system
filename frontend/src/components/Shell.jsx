@@ -1,10 +1,15 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Navigate, Outlet, useNavigate } from 'react-router-dom'
 import { getUser, signOut } from '../api.js'
 
 export default function Shell() {
   const user = getUser()
   const isStaff = user?.role === 'controller' || user?.role === 'examiner'
   const navigate = useNavigate()
+
+  // The shell is the signed-in layout, so it guards rather than leaving each
+  // child route to redirect. Without this the nav bar renders for a frame
+  // before the child bounces, which reads as a flicker on every sign-out.
+  if (!user) return <Navigate to="/welcome" replace />
 
   return (
     <div>
@@ -32,7 +37,7 @@ export default function Shell() {
                 ? <span className="mono">{user.enrollment_no}</span>
                 : <>{user?.full_name}{user?.staff_id && <span className="mono"> · {user.staff_id}</span>}</>}
             </span>
-            <button className="btn-ghost" onClick={() => { const staff = isStaff; signOut(); navigate(staff ? '/admin' : '/login') }}>
+            <button className="btn-ghost" onClick={() => { const staff = isStaff; signOut(); navigate('/welcome') }}>
               Sign out
             </button>
           </nav>

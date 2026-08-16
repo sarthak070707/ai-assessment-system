@@ -1,5 +1,43 @@
 import os
 from functools import lru_cache
+from pathlib import Path
+
+
+def _load_env_file() -> None:
+    """Read backend/.env into the process environment.
+
+    os.getenv reads the *process* environment, which a .env file is not part of
+    until something loads it. Without this the file is documentation rather than
+    configuration - every setting silently falls back to its default, and the
+    first setting with no default (GROQ_API_KEY) is the first to reveal it.
+
+    Real environment variables win, so a value exported in the shell or set by a
+    deployment platform is not overwritten by a stale local file.
+    """
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if not env_path.exists():
+        return
+
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv(env_path, override=False)
+        return
+    except ImportError:
+        pass
+
+    # Fallback parser, so a missing python-dotenv does not silently drop config.
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip().strip("\"'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_env_file()
 
 
 class Settings:
