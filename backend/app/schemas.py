@@ -211,6 +211,14 @@ class SubmitIn(BaseModel):
     answers: list[AnswerIn]
 
 
+class DraftIn(BaseModel):
+    answers: list[AnswerIn]
+
+
+class DraftOut(BaseModel):
+    saved_at: datetime
+
+
 class ProctorEventIn(BaseModel):
     event_type: str
     detail: str = ""

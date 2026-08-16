@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api.js'
 import Timer from '../components/Timer.jsx'
@@ -14,13 +14,33 @@ export default function TakeTest() {
   const [flags, setFlags] = useState(0)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [savedAt, setSavedAt] = useState(null)
+  const [saving, setSaving] = useState(false)
 
   // Time per question is measured, not asked for: it feeds the analytics report.
   const enteredAt = useRef(Date.now())
   const spent = useRef({})
 
   useEffect(() => {
-    api.startAttempt(assessmentId).then(setSession).catch((e) => setError(e.message))
+    api.startAttempt(assessmentId)
+      .then((data) => {
+        setSession(data)
+        // Restore saved work. Time spent is restored too, so resuming does not
+        // reset the per-question timings the analytics report is built from.
+        const restored = {}
+        for (const a of data.draft_answers || []) {
+          restored[a.question_id] = {
+            response_text: a.response_text || '',
+            selected_option: a.selected_option ?? null,
+          }
+          if (a.seconds_spent) spent.current[a.question_id] = a.seconds_spent
+        }
+        if (Object.keys(restored).length) {
+          setAnswers(restored)
+          setSavedAt(data.draft_saved_at ? new Date(data.draft_saved_at) : null)
+        }
+      })
+      .catch((e) => setError(e.message))
   }, [assessmentId])
 
   const questions = session?.questions ?? []
@@ -32,6 +52,44 @@ export default function TakeTest() {
     onFlag: () => setFlags((n) => n + 1),
     questionId: question?.id,
   })
+
+  // Snapshot of everything worth saving, rebuilt whenever an answer changes.
+  const draft = useMemo(
+    () => questions.map((q) => ({
+      question_id: q.id,
+      response_text: answers[q.id]?.response_text ?? '',
+      selected_option: answers[q.id]?.selected_option ?? null,
+      seconds_spent: spent.current[q.id] || 0,
+    })),
+    [answers, questions]
+  )
+
+  // Saved two seconds after typing stops, and again every half minute while the
+  // paper is open. Debouncing alone would never fire for a candidate who types
+  // continuously; an interval alone would lose up to thirty seconds of work.
+  useEffect(() => {
+    const id = session?.attempt?.id
+    if (!id || submitting || !questions.length) return
+
+    let cancelled = false
+    const push = async () => {
+      if (cancelled) return
+      setSaving(true)
+      try {
+        const result = await api.saveDraft(id, draft)
+        if (!cancelled) setSavedAt(new Date(result.saved_at))
+      } catch {
+        // Silent: a failed autosave must not interrupt someone sitting an exam.
+        // The next attempt is thirty seconds away and carries the same content.
+      } finally {
+        if (!cancelled) setSaving(false)
+      }
+    }
+
+    const debounce = setTimeout(push, 2000)
+    const heartbeat = setInterval(push, 30000)
+    return () => { cancelled = true; clearTimeout(debounce); clearInterval(heartbeat) }
+  }, [draft, session, submitting, questions.length])
 
   const recordTime = useCallback(() => {
     if (!question) return
@@ -153,6 +211,14 @@ export default function TakeTest() {
           <p className="small muted" style={{ margin: 0 }}>
             You can revisit any question until you submit.
           </p>
+          <div className="stack" style={{ gap: '.15rem', borderTop: '1px solid var(--rule-soft)', paddingTop: '.6rem' }}>
+            <span className="eyebrow">Your work</span>
+            <span className="small" style={{ color: savedAt ? 'var(--verdict)' : 'var(--ink-3)' }}>
+              {saving ? 'Saving…'
+                : savedAt ? `Saved ${savedAt.toLocaleTimeString()}`
+                : 'Not saved yet'}
+            </span>
+          </div>
         </nav>
 
         <section className="panel stack" style={{ padding: '1.5rem', gap: '1.1rem' }}>

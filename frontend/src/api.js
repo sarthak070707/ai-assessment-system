@@ -137,6 +137,7 @@ export const api = {
   updateQuestion: (id, payload) => request(`/questions/${id}`, { method: 'PUT', body: payload }),
   deleteQuestion: (id) => request(`/questions/${id}`, { method: 'DELETE' }),
   startAttempt: (id) => request(`/attempts/start/${id}`, { method: 'POST' }),
+  saveDraft: (id, answers) => request(`/attempts/${id}/draft`, { method: 'PUT', body: { answers } }),
   submitAttempt: (id, answers) => request(`/attempts/${id}/submit`, { method: 'POST', body: { answers } }),
   logEvent: (id, event_type, detail = '', question_id = null) =>
     request(`/attempts/${id}/events`, {

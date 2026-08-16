@@ -126,6 +126,13 @@ class Attempt(Base):
     max_score: Mapped[float] = mapped_column(Float, default=0.0)
     integrity_flags: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Work in progress, saved periodically while the paper is open. Held as a
+    # blob on the attempt rather than as Answer rows so that unsubmitted drafts
+    # never reach the grader or the plagiarism comparison, which reads every
+    # other submission for the same question.
+    draft_answers: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    draft_saved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     user: Mapped["User"] = relationship(back_populates="attempts")
     answers: Mapped[list["Answer"]] = relationship(
         back_populates="attempt", cascade="all, delete-orphan"

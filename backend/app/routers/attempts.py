@@ -12,7 +12,8 @@ from ..network import require_exam_network
 from ..evaluation.engine import grade_answer
 from ..models import Answer, Assessment, Attempt, ProctorEvent, Question, User
 from ..schemas import (
-    AttemptOut, AttemptResult, ProctorEventIn, QuestionOut, ReviewIn, SubmitIn
+    AttemptOut, AttemptResult, DraftIn, DraftOut, ProctorEventIn, QuestionOut,
+    ReviewIn, SubmitIn
 )
 
 router = APIRouter(prefix="/api/attempts", tags=["attempts"])
@@ -82,6 +83,10 @@ def start_attempt(
     ordered = _ordered_questions(db, assessment)
     return {
         "attempt": AttemptOut.model_validate(attempt),
+        # Whatever was saved before the page closed, so resuming restores the
+        # candidate's work rather than only their remaining time.
+        "draft_answers": attempt.draft_answers or [],
+        "draft_saved_at": attempt.draft_saved_at,
         "assessment": {
             "id": assessment.id,
             "title": assessment.title,
@@ -121,6 +126,30 @@ def log_event(
     db.commit()
 
 
+@router.put("/{attempt_id}/draft", response_model=DraftOut)
+def save_draft(
+    attempt_id: int,
+    payload: DraftIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    """Save work in progress.
+
+    Called periodically while the paper is open. Drafts are never graded and are
+    not visible to anyone but the candidate, so this is deliberately cheap: it
+    overwrites rather than merging, because the client always holds the complete
+    current state of the paper.
+    """
+    attempt = _owned_attempt(db, attempt_id, user)
+    if attempt.status == "submitted":
+        raise HTTPException(409, "This attempt has already been submitted.")
+
+    attempt.draft_answers = [a.model_dump() for a in payload.answers]
+    attempt.draft_saved_at = datetime.now(timezone.utc)
+    db.commit()
+    return DraftOut(saved_at=attempt.draft_saved_at)
+
+
 @router.post("/{attempt_id}/submit", response_model=AttemptResult)
 def submit_attempt(
     attempt_id: int,
@@ -153,6 +182,7 @@ def submit_attempt(
 
     attempt.total_score = round(total, 2)
     attempt.status = "submitted"
+    attempt.draft_answers = None   # graded answers supersede the draft
     attempt.submitted_at = datetime.now(timezone.utc)
 
     # A submission arriving well past the deadline means the client clock was not
