@@ -76,8 +76,9 @@ export default function Assessments() {
             <div key={a.id} className="panel" style={{ padding: '1.1rem 1.25rem' }}>
               <div className="spread" style={{ gap: '1rem', alignItems: 'flex-start' }}>
                 <div style={{ flex: 1 }}>
-                  <div className="row" style={{ gap: '.6rem', marginBottom: '.35rem' }}>
+                  <div className="row" style={{ gap: '.6rem', marginBottom: '.35rem', flexWrap: 'wrap' }}>
                     <h2>{a.title}</h2>
+                    {a.mode === 'adaptive' && <span className="tag tag-primary">adaptive</span>}
                     <span className={`tag ${a.is_published ? 'tag-verdict' : 'tag-signal'}`}>
                       {a.is_published ? 'published' : 'draft'}
                     </span>
@@ -122,11 +123,26 @@ function Builder({ assessment, questions, onCancel, onSave, error }) {
   const [title, setTitle] = useState(assessment?.title || '')
   const [description, setDescription] = useState(assessment?.description || '')
   const [duration, setDuration] = useState(assessment?.duration_minutes || 45)
+  const [mode, setMode] = useState(assessment?.mode || 'fixed')
+  const [maxQ, setMaxQ] = useState(assessment?.adaptive_max_questions || 10)
+  const [targetSE, setTargetSE] = useState(assessment?.adaptive_target_se ?? 0.4)
   const [picked, setPicked] = useState(assessment?.question_ids || [])
   const [localError, setLocalError] = useState('')
   const [saving, setSaving] = useState(false)
 
+  // Filters on the picker, not constraints on the paper. An examiner setting a
+  // single-type single-difficulty paper should not have to read past questions
+  // that cannot belong in it, but nothing stops a deliberately mixed paper.
+  const [filterKind, setFilterKind] = useState('')
+  const [filterDifficulty, setFilterDifficulty] = useState('')
+
   const toggle = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
+  const visible = questions.filter(
+    (q) => (!filterKind || q.kind === filterKind) && (!filterDifficulty || q.difficulty === filterDifficulty)
+  )
+  const chosenQs = questions.filter((q) => picked.includes(q.id))
+  const kinds = [...new Set(chosenQs.map((q) => q.kind))]
+  const difficulties = [...new Set(chosenQs.map((q) => q.difficulty))]
   const marks = picked.reduce((sum, id) => sum + (questions.find((q) => q.id === id)?.max_score || 0), 0)
 
   async function submit() {
@@ -135,7 +151,11 @@ function Builder({ assessment, questions, onCancel, onSave, error }) {
     if (!picked.length) return setLocalError('Select at least one question.')
     setSaving(true)
     try {
-      await onSave({ title: title.trim(), description: description.trim(), duration_minutes: Number(duration), question_ids: picked })
+      await onSave({
+        title: title.trim(), description: description.trim(),
+        duration_minutes: Number(duration), question_ids: picked,
+        mode, adaptive_max_questions: Number(maxQ), adaptive_target_se: Number(targetSE),
+      })
     } catch { /* parent shows it */ } finally { setSaving(false) }
   }
 
@@ -163,12 +183,87 @@ function Builder({ assessment, questions, onCancel, onSave, error }) {
         </label>
       </section>
 
+      <section className="panel stack" style={{ padding: '1.25rem', gap: '.9rem' }}>
+        <h2>How questions are served</h2>
+        <div className="row" style={{ gap: '.5rem' }}>
+          {[
+            ['fixed', 'Fixed paper', 'Everyone sits the same questions and can move between them freely.'],
+            ['adaptive', 'Adaptive', 'Each question is chosen from how the candidate is performing. No going back.'],
+          ].map(([id, label]) => (
+            <button key={id} onClick={() => setMode(id)}
+              style={{
+                border: `1px solid ${mode === id ? 'var(--primary)' : 'var(--rule)'}`,
+                background: mode === id ? 'var(--primary-10)' : 'transparent',
+                color: mode === id ? 'var(--primary)' : 'var(--ink-2)',
+                fontWeight: mode === id ? 600 : 500,
+              }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="small muted" style={{ margin: 0 }}>
+          {mode === 'adaptive'
+            ? 'The questions below become a pool. Each candidate is served a different sequence from it, so the paper measures ability in fewer questions than a fixed one needs.'
+            : 'Everyone sits the same questions and can move between them freely.'}
+        </p>
+
+        {mode === 'adaptive' && (
+          <div className="row" style={{ gap: '1rem', flexWrap: 'wrap' }}>
+            <label className="stack" style={{ gap: '.3rem', maxWidth: 170 }}>
+              <span className="eyebrow">Maximum questions</span>
+              <input type="number" className="mono" min="3" value={maxQ} onChange={(e) => setMaxQ(e.target.value)} />
+            </label>
+            <label className="stack" style={{ gap: '.3rem', maxWidth: 210 }}>
+              <span className="eyebrow">Stop when precision reaches</span>
+              <input type="number" className="mono" step="0.05" min="0.15" max="1"
+                value={targetSE} onChange={(e) => setTargetSE(e.target.value)} />
+              <span className="small muted">Lower is stricter and asks more questions.</span>
+            </label>
+          </div>
+        )}
+      </section>
+
       <section className="panel stack" style={{ padding: '1.25rem', gap: '.6rem' }}>
         <div className="spread">
           <h2>Questions</h2>
           <span className="mono small muted">{picked.length} selected · {marks} marks</span>
         </div>
-        {questions.map((q) => {
+
+        <div className="row" style={{ gap: '.5rem', flexWrap: 'wrap' }}>
+          <select value={filterKind} onChange={(e) => setFilterKind(e.target.value)}
+            style={{ width: 'auto', fontSize: '.85rem' }}>
+            <option value="">All types</option>
+            <option value="mcq">Multiple choice only</option>
+            <option value="descriptive">Written only</option>
+            <option value="coding">Coding only</option>
+          </select>
+          <select value={filterDifficulty} onChange={(e) => setFilterDifficulty(e.target.value)}
+            style={{ width: 'auto', fontSize: '.85rem' }}>
+            <option value="">All difficulties</option>
+            <option value="easy">Easy only</option>
+            <option value="medium">Medium only</option>
+            <option value="hard">Hard only</option>
+          </select>
+          {(filterKind || filterDifficulty) && (
+            <button className="btn-ghost" style={{ fontSize: '.8rem', padding: '.35rem .7rem' }}
+              onClick={() => { setFilterKind(''); setFilterDifficulty('') }}>
+              Clear
+            </button>
+          )}
+          <span className="small muted" style={{ marginLeft: 'auto' }}>
+            showing {visible.length} of {questions.length}
+          </span>
+        </div>
+
+        {picked.length > 1 && (kinds.length > 1 || difficulties.length > 1) && (
+          <p className="small muted" style={{ margin: 0 }}>
+            This paper mixes {kinds.length > 1 ? kinds.join(' and ') : ''}
+            {kinds.length > 1 && difficulties.length > 1 ? ', and ' : ''}
+            {difficulties.length > 1 ? `${difficulties.join(' and ')} difficulty` : ''}.
+            That is allowed — filter above if you meant it to be uniform.
+          </p>
+        )}
+        {visible.map((q) => {
           const on = picked.includes(q.id)
           return (
             <label key={q.id} className="row" style={{
@@ -200,16 +295,7 @@ function Builder({ assessment, questions, onCancel, onSave, error }) {
   )
 }
 
+/** Inline notice. Colour lives in the stylesheet so both themes stay correct. */
 function Banner({ tone, children }) {
-  const map = {
-    alert: ['var(--alert)', 'var(--alert-10)', '#EBC9C6'],
-    verdict: ['var(--verdict)', 'var(--verdict-10)', '#BFDED3'],
-    signal: ['#8A5610', 'var(--signal-10)', '#EEDCB6'],
-  }
-  const [fg, bg, border] = map[tone]
-  return (
-    <div className="small" style={{ color: fg, background: bg, border: `1px solid ${border}`, borderRadius: 'var(--r)', padding: '.6rem .8rem' }}>
-      {children}
-    </div>
-  )
+  return <div className={`notice notice-${tone}`}>{children}</div>
 }

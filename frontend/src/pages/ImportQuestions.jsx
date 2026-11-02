@@ -16,6 +16,10 @@ export default function ImportQuestions() {
   const isOffice = me?.role === 'controller'
 
   const [text, setText] = useState('')
+  const [syllabus, setSyllabus] = useState('')
+  const [genKind, setGenKind] = useState('mcq')
+  const [genDifficulty, setGenDifficulty] = useState('medium')
+  const [genCount, setGenCount] = useState(5)
   const [defaultMarks, setDefaultMarks] = useState(5)
   const [subject, setSubject] = useState(mySubjects[0] || '')
   const [drafts, setDrafts] = useState(null)
@@ -259,6 +263,78 @@ export default function ImportQuestions() {
       </section>
 
       <section className="panel stack" style={{ padding: '1.25rem', gap: '.9rem' }}>
+        <div className="spread">
+          <h2>Write questions from a syllabus</h2>
+          <span className="tag tag-primary">AI</span>
+        </div>
+        <p className="small muted" style={{ margin: 0 }}>
+          Paste a syllabus or topic list and have questions written for it. One type and one
+          difficulty at a time, so a paper stays consistent.
+        </p>
+
+        <textarea rows={6} value={syllabus} onChange={(e) => setSyllabus(e.target.value)}
+          placeholder={'Unit 3 \u2014 Databases\n\nNormalisation up to BCNF. Functional dependencies.\nIndexing: B-trees, hash indexes, when each is appropriate.\nTransactions: ACID properties, isolation levels.'} />
+
+        <div className="row" style={{ gap: '.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <label className="stack" style={{ gap: '.3rem', minWidth: 170 }}>
+            <span className="eyebrow">Subject</span>
+            {isOffice ? (
+              <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" />
+            ) : (
+              <select value={subject} onChange={(e) => setSubject(e.target.value)}>
+                <option value="">Select\u2026</option>
+                {mySubjects.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )}
+          </label>
+          <label className="stack" style={{ gap: '.3rem' }}>
+            <span className="eyebrow">Type</span>
+            <select value={genKind} onChange={(e) => setGenKind(e.target.value)} style={{ width: 'auto' }}>
+              <option value="mcq">Multiple choice</option>
+              <option value="descriptive">Written</option>
+              <option value="coding">Coding</option>
+            </select>
+          </label>
+          <label className="stack" style={{ gap: '.3rem' }}>
+            <span className="eyebrow">Difficulty</span>
+            <select value={genDifficulty} onChange={(e) => setGenDifficulty(e.target.value)} style={{ width: 'auto' }}>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </label>
+          <label className="stack" style={{ gap: '.3rem', width: 90 }}>
+            <span className="eyebrow">How many</span>
+            <input type="number" className="mono" min="1" max="12" value={genCount}
+              onChange={(e) => setGenCount(e.target.value)} />
+          </label>
+          <label className="stack" style={{ gap: '.3rem', width: 90 }}>
+            <span className="eyebrow">Marks each</span>
+            <input type="number" className="mono" min="1" value={defaultMarks}
+              onChange={(e) => setDefaultMarks(e.target.value)} />
+          </label>
+          <button className="btn-primary" disabled={busy}
+            onClick={() => {
+              if (!syllabus.trim()) return setError('Paste a syllabus first.')
+              if (!subject) return setError('Choose the subject these questions belong to.')
+              preview(() => api.generateQuestions({
+                syllabus, skill: subject, kind: genKind,
+                difficulty: genDifficulty, count: Number(genCount),
+                max_score: Number(defaultMarks),
+              }))
+            }}>
+            {busy ? 'Writing\u2026' : 'Write questions'}
+          </button>
+        </div>
+
+        <p className="small" style={{ margin: 0, color: 'var(--signal-tx)' }}>
+          Generated questions carry an answer the model invented, with no source to check it
+          against. Coding questions are run against their own reference solution before you see
+          them; everything else needs reading. Nothing saves until you approve it.
+        </p>
+      </section>
+
+      <section className="panel stack" style={{ padding: '1.25rem', gap: '.9rem' }}>
         <h2>Or paste the questions</h2>
         <textarea rows={10} value={text} onChange={(e) => setText(e.target.value)}
           placeholder={'Q1. What is the time complexity of binary search? [2 marks]\na) O(1)\nb) O(log n)\nAnswer: b\n\nQ2. Explain database normalisation. [8 marks]\nAnswer: Normalisation organises tables to reduce redundancy...\nKeywords: redundancy, dependency, 3NF'} />
@@ -289,12 +365,7 @@ export default function ImportQuestions() {
   )
 }
 
+/** Inline notice. Colour lives in the stylesheet so both themes stay correct. */
 function Banner({ tone, children }) {
-  const map = { alert: ['var(--alert)', 'var(--alert-10)', '#EBC9C6'] }
-  const [fg, bg, border] = map[tone]
-  return (
-    <div className="small" style={{ color: fg, background: bg, border: `1px solid ${border}`, borderRadius: 'var(--r)', padding: '.6rem .8rem' }}>
-      {children}
-    </div>
-  )
+  return <div className={`notice notice-${tone}`}>{children}</div>
 }

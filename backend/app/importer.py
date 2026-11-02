@@ -89,7 +89,10 @@ def extract_text(filename: str, data: bytes) -> str:
             raise ValueError(f"That Word file could not be opened ({exc}).") from exc
         return "\n".join(p.text for p in document.paragraphs)
 
-    if name.endswith((".txt", ".md", "")):
+    # An extensionless filename is treated as plain text, but the empty string
+    # must not be in the endswith tuple: every string ends with it, so that
+    # branch matched anything and the refusal below was unreachable.
+    if name.endswith((".txt", ".md")) or "." not in name.rsplit("/", 1)[-1]:
         for encoding in ("utf-8", "utf-16", "latin-1"):
             try:
                 return data.decode(encoding)

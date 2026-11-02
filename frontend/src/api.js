@@ -132,11 +132,13 @@ export const api = {
     }
     return res.json()
   },
+  generateQuestions: (payload) => request('/questions/generate', { method: 'POST', body: payload }),
   importCommit: (skill, questions) =>
     request('/questions/import/commit', { method: 'POST', body: { skill, questions } }),
   updateQuestion: (id, payload) => request(`/questions/${id}`, { method: 'PUT', body: payload }),
   deleteQuestion: (id) => request(`/questions/${id}`, { method: 'DELETE' }),
   startAttempt: (id) => request(`/attempts/start/${id}`, { method: 'POST' }),
+  adaptiveAnswer: (id, answer) => request(`/attempts/${id}/answer`, { method: 'POST', body: answer }),
   saveDraft: (id, answers) => request(`/attempts/${id}/draft`, { method: 'PUT', body: { answers } }),
   submitAttempt: (id, answers) => request(`/attempts/${id}/submit`, { method: 'POST', body: { answers } }),
   logEvent: (id, event_type, detail = '', question_id = null) =>

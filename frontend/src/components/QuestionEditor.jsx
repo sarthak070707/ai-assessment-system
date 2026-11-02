@@ -110,9 +110,7 @@ export default function QuestionEditor({ question, onCancel, onSave, error }) {
       </div>
 
       {shown && (
-        <div className="small" style={{ color: 'var(--alert)', background: 'var(--alert-10)', border: '1px solid #EBC9C6', borderRadius: 'var(--r)', padding: '.6rem .8rem' }}>
-          {shown}
-        </div>
+        <div className="notice notice-alert">{shown}</div>
       )}
 
       <section className="panel stack" style={{ padding: '1.25rem', gap: '1rem' }}>

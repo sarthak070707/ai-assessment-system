@@ -9,11 +9,12 @@ from ..deps import (
     code_claim, current_user, exam_claim, owns_or_controls, require_exam_access, require_staff
 )
 from ..network import require_exam_network
+from ..evaluation import adaptive
 from ..evaluation.engine import grade_answer
 from ..models import Answer, Assessment, Attempt, ProctorEvent, Question, User
 from ..schemas import (
-    AttemptOut, AttemptResult, DraftIn, DraftOut, ProctorEventIn, QuestionOut,
-    ReviewIn, SubmitIn
+    AdaptiveAnswerIn, AdaptiveStep, AttemptOut, AttemptResult, DraftIn, DraftOut,
+    ProctorEventIn, QuestionOut, ReviewIn, SubmitIn
 )
 
 router = APIRouter(prefix="/api/attempts", tags=["attempts"])
@@ -81,6 +82,38 @@ def start_attempt(
     remaining = max(0, int(assessment.duration_minutes * 60 - elapsed))
 
     ordered = _ordered_questions(db, assessment)
+
+    if assessment.mode == "adaptive":
+        # Only the current question is sent. Serving the pool would let a
+        # candidate read every item in it from the network response, and the
+        # sequence is not decided in advance anyway - it depends on how they do.
+        served = list(attempt.served_question_ids or [])
+        pool = {q.id: q for q in ordered}
+        current = pool.get(served[-1]) if served else None
+
+        if current is None:
+            current = adaptive.select_next(ordered, set(served), attempt.ability, {})
+            if current is not None:
+                served.append(current.id)
+                attempt.served_question_ids = served
+                db.commit()
+
+        return {
+            "attempt": AttemptOut.model_validate(attempt),
+            "assessment": {
+                "id": assessment.id,
+                "title": assessment.title,
+                "duration_minutes": assessment.duration_minutes,
+                "seconds_remaining": remaining,
+                "mode": "adaptive",
+                "max_questions": min(assessment.adaptive_max_questions, len(ordered)),
+            },
+            "questions": [QuestionOut.model_validate(current)] if current else [],
+            "answered": len([a for a in attempt.answers]),
+            "draft_answers": [],
+            "draft_saved_at": None,
+        }
+
     return {
         "attempt": AttemptOut.model_validate(attempt),
         # Whatever was saved before the page closed, so resuming restores the
@@ -92,6 +125,7 @@ def start_attempt(
             "title": assessment.title,
             "duration_minutes": assessment.duration_minutes,
             "seconds_remaining": remaining,
+            "mode": "fixed",
         },
         # Answer keys and test cases are never serialised to the candidate.
         "questions": [QuestionOut.model_validate(q) for q in ordered],
@@ -124,6 +158,113 @@ def log_event(
     ))
     attempt.integrity_flags += 1
     db.commit()
+
+
+@router.post("/{attempt_id}/answer", response_model=AdaptiveStep)
+def adaptive_answer(
+    attempt_id: int,
+    payload: AdaptiveAnswerIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    """Grade one answer, re-estimate ability, and serve the next question.
+
+    Grading happens here rather than at submission because the next item cannot
+    be chosen until this one has been scored. That is the defining property of
+    an adaptive paper, and the reason a candidate cannot go back: an earlier
+    answer has already determined what came after it.
+    """
+    attempt = _owned_attempt(db, attempt_id, user)
+    if attempt.status == "submitted":
+        raise HTTPException(409, "This attempt has already been submitted.")
+
+    assessment = db.get(Assessment, attempt.assessment_id)
+    if not assessment or assessment.mode != "adaptive":
+        raise HTTPException(400, "This is not an adaptive assessment.")
+
+    served = list(attempt.served_question_ids or [])
+    if payload.question_id not in served:
+        raise HTTPException(400, "That question was not served in this attempt.")
+    if any(a.question_id == payload.question_id for a in attempt.answers):
+        raise HTTPException(409, "That question has already been answered.")
+
+    question = db.get(Question, payload.question_id)
+    if question is None:
+        raise HTTPException(404, "Question not found.")
+
+    answer = Answer(
+        attempt_id=attempt.id,
+        question_id=question.id,
+        response_text=payload.response_text,
+        selected_option=payload.selected_option,
+        seconds_spent=payload.seconds_spent,
+    )
+    db.add(answer)
+    db.flush()
+    grade_answer(db, answer, question)
+    db.flush()
+
+    # Read the answers back from the database rather than from attempt.answers.
+    # The relationship collection was loaded before this answer was added and is
+    # not refreshed by flush, so counting it served one question too many - the
+    # paper ran to six items with a cap of five.
+    graded = db.scalars(select(Answer).where(Answer.attempt_id == attempt.id)).all()
+
+    # Partial credit is carried through as a fraction rather than rounded to
+    # right or wrong, which would discard most of what a coding or descriptive
+    # answer tells us.
+    responses = [
+        (adaptive.difficulty_of(db.get(Question, a.question_id)),
+         (a.score / db.get(Question, a.question_id).max_score)
+         if db.get(Question, a.question_id).max_score else 0.0)
+        for a in graded
+    ]
+    attempt.ability, attempt.ability_se = adaptive.estimate_ability(responses)
+
+    pool = db.scalars(select(Question).where(Question.id.in_(assessment.question_ids))).all()
+    answered = len(graded)
+    finished, reason = adaptive.should_stop(
+        answered, attempt.ability_se,
+        assessment.adaptive_max_questions, assessment.adaptive_target_se, len(pool),
+    )
+
+    next_question = None
+    if not finished:
+        skill_counts: dict[str, int] = {}
+        for a in graded:
+            skill = db.get(Question, a.question_id).skill
+            skill_counts[skill] = skill_counts.get(skill, 0) + 1
+        next_question = adaptive.select_next(pool, set(served), attempt.ability, skill_counts)
+        if next_question is None:
+            finished, reason = True, "pool"
+        else:
+            served.append(next_question.id)
+            attempt.served_question_ids = served
+
+    if finished:
+        attempt.status = "submitted"
+        attempt.submitted_at = datetime.now(timezone.utc)
+        attempt.stop_reason = reason
+        attempt.total_score = round(sum(a.score for a in graded), 2)
+        # Only the items actually served count towards the total; a candidate
+        # cannot lose marks for questions the algorithm decided not to ask.
+        attempt.max_score = round(
+            sum(db.get(Question, a.question_id).max_score for a in graded), 2)
+        attempt.draft_answers = None
+
+    db.commit()
+    db.refresh(attempt)
+
+    return AdaptiveStep(
+        finished=finished,
+        question=QuestionOut.model_validate(next_question) if next_question else None,
+        answered=answered,
+        max_questions=min(assessment.adaptive_max_questions, len(pool)),
+        ability_percent=adaptive.to_percentage(attempt.ability),
+        precision=attempt.ability_se,
+        stop_reason=reason or None,
+        attempt_id=attempt.id,
+    )
 
 
 @router.put("/{attempt_id}/draft", response_model=DraftOut)

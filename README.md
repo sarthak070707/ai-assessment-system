@@ -55,22 +55,23 @@ Open **http://localhost:5173**
 
 Two separate portals:
 
-**Examiner** — `http://localhost:5173/#/admin`
+**Staff** — `http://localhost:5173/#/admin` (sign in with staff ID or email)
 
-| Email | Password |
-|---|---|
-| `admin@college.edu` | `admin123` |
+| Staff ID | Password | Role |
+|---|---|---|
+| `EXO001` | `control123` | Exam office — sees and edits everything |
+| `CS204` | `teach123` | Dr. Rao — teaches Algorithms, Data Structures |
+| `CS311` | `teach123` | Prof. Sharma — teaches Databases, System Design |
 
-**Candidate** — `http://localhost:5173/#/login`
+**Candidates** — `http://localhost:5173/#/login`
 
-| Enrolment no. | Exam code |
-|---|---|
-| `21BCS1042` | `DEMO-2025` |
-| `21BCS1043` | `DEMO-2026` |
-| `21BCS1044` | `DEMO-2027` |
+Enrolled for the demo: `21BCS1042`, `21BCS1043`, `21BCS1044`. They hold no password.
 
-Demo codes are single-use. Once spent, issue fresh ones from the examiner portal
-(Candidates → select → Generate codes), or re-run `python seed.py` on a clean database.
+**No exam codes are seeded, deliberately.** A fixed code such as `RAO-2025` sitting in the seed file
+would contradict the model the rest of the system enforces — codes are randomly generated,
+single-use, and issued by a person. To sit a paper: sign in as staff above, open **Candidates**,
+select a student and press **Generate codes**. Two clicks, and it is the real flow rather than a
+demo shortcut.
 
 Interactive API docs: **http://localhost:8000/docs** — every endpoint is callable from the browser,
 which is the fastest way to demo the backend in a viva.
@@ -229,7 +230,10 @@ MCQ, starter code and JSON test cases for coding, a reference answer and rubric 
 descriptive.
 
 **Assessment builder** (`/assessments`) — assemble papers from the bank, set duration, and
-publish or unpublish. Unpublished papers are invisible to candidates.
+publish or unpublish. The question picker filters by type and difficulty, so a paper of only medium
+multiple-choice questions can be built without reading past everything that cannot belong in it.
+These are filters on the picker rather than constraints on the paper: a mixed paper is still allowed,
+and a note appears if the selection spans several types. Unpublished papers are invisible to candidates.
 
 **Candidates** (`/candidates`) — enrol candidates by enrolment number and generate exam codes in
 bulk, with a live view of which have been issued and which have been used.

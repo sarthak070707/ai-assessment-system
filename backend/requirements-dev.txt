@@ -1,0 +1,10 @@
+# Test dependencies, on top of requirements.txt:
+#
+#     pip install -r requirements.txt -r requirements-dev.txt
+#     pytest
+#
+# httpx2 is what starlette's TestClient uses to drive the app in-process. Older
+# starlette versions accepted httpx and warned; current ones refuse without
+# httpx2, so it is pinned as a floor rather than left to whatever is installed.
+pytest>=8.0
+httpx2>=0.1

@@ -30,12 +30,12 @@ export default function SetPassword() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--ink)' }}>
+    <div style={{ minHeight: '100vh' }}>
       <div className="row" style={{ minHeight: '100vh', justifyContent: 'center', padding: '2rem' }}>
         <div style={{ width: '100%', maxWidth: 400 }}>
-          <span className="eyebrow" style={{ color: '#8C96A5' }}>First sign-in</span>
-          <h1 style={{ marginTop: '.35rem', color: '#fff' }}>Choose your password</h1>
-          <p className="small" style={{ color: '#8C96A5', marginTop: '.4rem', marginBottom: '1.5rem' }}>
+          <span className="eyebrow" style={{ color: 'var(--ink-3)' }}>First sign-in</span>
+          <h1 style={{ marginTop: '.35rem' }}>Choose your password</h1>
+          <p className="small muted" style={{ marginTop: '.4rem', marginBottom: '1.5rem' }}>
             Your account was issued with a temporary password that the exam office also knows.
             Replace it before you can use the portal.
           </p>
@@ -59,9 +59,7 @@ export default function SetPassword() {
             </label>
 
             {error && (
-              <div className="small" style={{ color: 'var(--alert)', background: 'var(--alert-10)', border: '1px solid #EBC9C6', borderRadius: 'var(--r)', padding: '.5rem .65rem' }}>
-                {error}
-              </div>
+              <div className="notice notice-alert">{error}</div>
             )}
 
             <button className="btn-primary" onClick={submit} disabled={busy}>

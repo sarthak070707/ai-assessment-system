@@ -3,8 +3,26 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api.js'
 import Timer from '../components/Timer.jsx'
 import useProctor from '../components/useProctor.js'
+import AdaptiveTest from './AdaptiveTest.jsx'
 
 export default function TakeTest() {
+  // Peek at the mode before committing to a flow. An adaptive paper has no
+  // navigator, no drafts and no going back, so the two share a route but not a
+  // component.
+  const { assessmentId: routeId } = useParams()
+  const [mode, setMode] = useState(null)
+  useEffect(() => {
+    api.assessments()
+      .then((list) => setMode(list.find((a) => String(a.id) === String(routeId))?.mode || 'fixed'))
+      .catch(() => setMode('fixed'))
+  }, [routeId])
+
+  if (mode === null) return <p style={{ padding: '3rem', textAlign: 'center' }} className="muted">Loading assessment…</p>
+  if (mode === 'adaptive') return <AdaptiveTest />
+  return <FixedTest />
+}
+
+function FixedTest() {
   const { assessmentId } = useParams()
   const navigate = useNavigate()
 
@@ -197,7 +215,7 @@ export default function TakeTest() {
                     padding: '.4rem 0', fontSize: '.8rem', fontWeight: 600,
                     border: `1px solid ${active ? 'var(--primary)' : 'var(--rule)'}`,
                     background: active ? 'var(--primary)' : done ? 'var(--verdict-10)' : 'transparent',
-                    color: active ? '#fff' : done ? 'var(--verdict)' : 'var(--ink-3)',
+                    color: active ? 'var(--on-primary)' : done ? 'var(--verdict)' : 'var(--ink-3)',
                   }}
                 >
                   {i + 1}

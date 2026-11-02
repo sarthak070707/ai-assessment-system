@@ -1,38 +1,47 @@
 import { Link } from 'react-router-dom'
+import ThemeToggle from '../components/ThemeToggle.jsx'
+import Footer from '../components/Footer.jsx'
+import DemoCredentials from '../components/DemoCredentials.jsx'
 
 /**
  * Front door. Two ways in, no self sign-up: candidates are enrolled by the exam
  * office and hold no standing password, so there is nothing to register for.
  *
- * Each card is styled like the portal behind it — candidate light, staff dark —
- * so the split between the two is visible before you commit to either.
+ * The staff card is distinguished by emphasis — brand-coloured border and mark —
+ * rather than by inverting its surface, which would flip wrongly between themes.
  */
 export default function Landing() {
   return (
-    <div className="stack" style={{ minHeight: '100vh', background: 'var(--canvas)' }}>
+    <div className="stack" style={{ minHeight: '100vh', backgroundColor: 'var(--canvas)' }}>
       <header style={{ borderBottom: '1px solid var(--rule)', background: 'var(--panel)' }}>
-        <div className="spread" style={{ maxWidth: 1020, margin: '0 auto', padding: '1.1rem 1.5rem' }}>
+        <div className="spread" style={{ maxWidth: 960, margin: '0 auto', padding: '.9rem 1.5rem' }}>
           <div>
             <span style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: '1.05rem', letterSpacing: '-.02em' }}>
               Online Assessment System
             </span>
-            <span className="mono muted" style={{ marginLeft: 10, fontSize: '.7rem' }}>v1.0</span>
           </div>
-          <span className="eyebrow">Examinations</span>
+          <div className="row" style={{ gap: '1rem' }}>
+            <span className="eyebrow">Examinations</span>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
-      <main style={{ maxWidth: 1020, margin: '0 auto', padding: '3.5rem 1.5rem 4rem', width: '100%' }}>
-        <div style={{ maxWidth: 560 }}>
+      <main style={{ maxWidth: 960, margin: '0 auto', padding: '4rem 1.5rem 3rem', width: '100%', flex: 1 }}>
+        <div>
           <span className="eyebrow">Welcome</span>
-          <h1 style={{ marginTop: '.4rem', fontSize: '2rem' }}>Choose how you're signing in</h1>
-          <p className="muted" style={{ marginTop: '.6rem', lineHeight: 1.65 }}>
+          {/* The heading gets its own width. Sharing the paragraph's measure
+              orphaned the last word onto a line by itself. */}
+          <h1 style={{ marginTop: '.5rem', fontSize: '2.1rem', lineHeight: 1.15, maxWidth: 640 }}>
+            Choose how you're signing in
+          </h1>
+          <p className="muted" style={{ marginTop: '.7rem', lineHeight: 1.65, maxWidth: 520 }}>
             Candidates sit scheduled papers using a one-time code. Staff set papers,
             issue codes and review scripts.
           </p>
         </div>
 
-        <div className="grid-2" style={{ gap: '1.25rem', marginTop: '2.5rem' }}>
+        <div className="grid-2" style={{ gap: '1rem', marginTop: '2.25rem' }}>
           <Card
             to="/login"
             eyebrow="Candidates"
@@ -53,41 +62,49 @@ export default function Landing() {
               'Question bank, paper scheduling, exam codes and score review.',
             ]}
             cta="Staff portal"
-            tone="dark"
+            tone="accent"
           />
         </div>
 
-        <p className="small muted" style={{ marginTop: '2.5rem', maxWidth: 560, lineHeight: 1.7 }}>
+        <div style={{ marginTop: '1.25rem' }}>
+          <DemoCredentials />
+        </div>
+
+        <p className="small muted" style={{ marginTop: '1.75rem', maxWidth: 520, lineHeight: 1.7 }}>
           No public registration. Candidates are enrolled by the exam office, and staff
           accounts are created for them — if you cannot sign in, that is who to ask.
         </p>
       </main>
+
+      <Footer />
     </div>
   )
 }
 
 function Card({ to, eyebrow, title, lines, cta, tone }) {
-  const dark = tone === 'dark'
+  // 'accent' is the staff card. Distinguished by emphasis rather than by
+  // inverting the surface, which would flip wrongly between themes.
+  const accent = tone === 'accent'
   return (
     <Link
       to={to}
-      className="panel stack"
+      className="panel stack portal-card"
       style={{
-        padding: '1.75rem', gap: '.6rem', textDecoration: 'none',
-        justifyContent: 'space-between', minHeight: 260,
-        background: dark ? 'var(--ink)' : 'var(--panel)',
-        borderColor: dark ? 'var(--ink)' : 'var(--rule)',
-        color: dark ? '#fff' : 'var(--ink)',
+        padding: '1.6rem', gap: '1.25rem', textDecoration: 'none',
+        justifyContent: 'space-between',
+        background: accent ? 'var(--panel-2)' : 'var(--panel)',
+        borderColor: accent ? 'var(--primary-br)' : 'var(--rule)',
+        color: 'var(--ink)',
       }}
     >
-      <div className="stack" style={{ gap: '.5rem' }}>
-        <Mark dark={dark} />
-        <span className="eyebrow" style={{ color: dark ? '#8C96A5' : 'var(--ink-3)', marginTop: '.5rem' }}>
-          {eyebrow}
+      <div className="stack" style={{ gap: '.4rem' }}>
+        <span className="portal-mark" style={{ marginBottom: '.5rem' }}>
+          <Mark accent={accent} />
         </span>
-        <h2 style={{ fontSize: '1.35rem' }}>{title}</h2>
+        <span className="eyebrow">{eyebrow}</span>
+        <h2 style={{ fontSize: '1.3rem', marginTop: '.1rem' }}>{title}</h2>
         {lines.map((line, i) => (
-          <p key={i} className="small" style={{ margin: 0, color: dark ? '#8C96A5' : 'var(--ink-3)', lineHeight: 1.6 }}>
+          <p key={i} className="small muted" style={{ margin: i ? '.15rem 0 0' : '.3rem 0 0', lineHeight: 1.6 }}>
             {line}
           </p>
         ))}
@@ -95,14 +112,11 @@ function Card({ to, eyebrow, title, lines, cta, tone }) {
 
       <span
         className="row"
-        style={{
-          gap: '.5rem', marginTop: '1rem', fontWeight: 600, fontSize: '.9rem',
-          color: dark ? '#fff' : 'var(--primary)',
-        }}
+        style={{ gap: '.45rem', fontWeight: 600, fontSize: '.9rem', color: 'var(--primary)' }}
       >
         {cta}
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" stroke="currentColor" strokeWidth="1.6"
+        <svg className="portal-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" stroke="currentColor" strokeWidth="1.7"
             strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
@@ -112,12 +126,12 @@ function Card({ to, eyebrow, title, lines, cta, tone }) {
 
 /* Candidate: a single sheet with a clock, for a timed paper.
    Staff: stacked sheets, for a bank of papers. */
-function Mark({ dark }) {
-  const stroke = dark ? '#8C96A5' : 'var(--primary)'
-  return dark ? (
+function Mark({ accent }) {
+  const stroke = 'var(--primary)'
+  return accent ? (
     <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
       <rect x="3.5" y="6.5" width="16" height="19" rx="2" stroke={stroke} strokeWidth="1.6" />
-      <rect x="9.5" y="3.5" width="16" height="19" rx="2" stroke={stroke} strokeWidth="1.6" fill={dark ? 'var(--ink)' : 'var(--panel)'} />
+      <rect x="9.5" y="3.5" width="16" height="19" rx="2" stroke={stroke} strokeWidth="1.6" fill="var(--panel-2)" />
       <path d="M13 9h9M13 12.5h9M13 16h5" stroke={stroke} strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   ) : (

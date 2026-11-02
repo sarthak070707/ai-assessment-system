@@ -5,9 +5,12 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..deps import owns_or_controls, require_controller, require_ownership, require_staff
 from ..models import Answer, Assessment, Question, User
+from ..generator import generate as generate_questions
 from ..importer import extract_questions, extract_text
+from ..llm import LLMUnavailable
 from ..schemas import (
-    ImportCommitIn, ImportPreviewIn, ImportPreviewOut, QuestionAdminOut, QuestionCreate
+    GenerateIn, ImportCommitIn, ImportPreviewIn, ImportPreviewOut, QuestionAdminOut,
+    QuestionCreate
 )
 
 router = APIRouter(prefix="/api/questions", tags=["questions"])
@@ -173,6 +176,42 @@ def import_text(payload: ImportPreviewIn, _=Depends(require_staff)):
     if not payload.text.strip():
         raise HTTPException(400, "Paste some questions first.")
     return _preview(payload.text, payload.default_marks)
+
+
+@router.post("/generate", response_model=ImportPreviewOut)
+def generate_from_syllabus(payload: GenerateIn, user: User = Depends(require_staff)):
+    """Write questions from a syllabus. Saves nothing.
+
+    Riskier than importing: an imported answer key comes from a document, while a
+    generated one is the model's own invention with nothing to check it against.
+    Coding questions are therefore executed against their own reference solution
+    before an examiner sees them, and every generated question is flagged for
+    verification whether or not anything looks wrong.
+    """
+    if user.role != "controller":
+        allowed = user.subjects or []
+        if payload.skill.strip() not in allowed:
+            raise HTTPException(
+                403,
+                f"'{payload.skill}' is not one of your subjects. You teach: {', '.join(allowed)}.",
+            )
+
+    try:
+        drafts = generate_questions(
+            payload.syllabus, payload.skill.strip(), payload.kind,
+            payload.difficulty, payload.count, payload.max_score,
+        )
+    except LLMUnavailable as exc:
+        raise HTTPException(503, str(exc)) from exc
+
+    return ImportPreviewOut(
+        questions=drafts,
+        total=len(drafts),
+        needs_attention=sum(1 for d in drafts if len(d["warnings"]) > 1),
+        source_characters=len(payload.syllabus),
+        backend="groq",
+        note="Written from your syllabus. Every question needs checking before it is saved.",
+    )
 
 
 @router.post("/import/commit", response_model=list[QuestionAdminOut], status_code=201)

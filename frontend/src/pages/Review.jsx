@@ -81,7 +81,7 @@ export default function Review() {
 
             {row.integrity_flags?.length > 0 && (
               <div className="row" style={{ gap: '.4rem', flexWrap: 'wrap' }}>
-                <span className="eyebrow" style={{ color: '#8A5610' }}>While answering this:</span>
+                <span className="eyebrow" style={{ color: 'var(--signal-tx)' }}>While answering this:</span>
                 {row.integrity_flags.map((f, i) => (
                   <span key={i} className="tag tag-signal">
                     {f.type.replace(/_/g, ' ')}{f.detail ? ` · ${f.detail}` : ''}

@@ -35,6 +35,11 @@ def list_assessments(
     stmt = select(Assessment).order_by(Assessment.id)
     if user.role == "candidate":
         stmt = stmt.where(Assessment.is_published.is_(True))
+        # A code opens one paper, so that is the only one worth showing. Listing
+        # every published paper turned the candidate's first screen into a menu
+        # of exams they cannot open, which is noise at the worst moment.
+        if exam is not None:
+            stmt = stmt.where(Assessment.id == exam)
     elif user.role == "examiner":
         stmt = stmt.where(Assessment.created_by == user.id)
 
@@ -43,7 +48,9 @@ def list_assessments(
         return papers
 
     for paper in papers:
-        # A candidate token is scoped to one paper; the rest are visible but shut.
+        # Everything reaching a candidate is now a paper their code opens, but
+        # the flag stays accurate rather than hardcoded: it is what the interface
+        # reads, and a wrong value here would offer a button the API refuses.
         paper.opens_with_your_code = exam is None or exam == paper.id
 
         paper.sitting_used = db.scalar(

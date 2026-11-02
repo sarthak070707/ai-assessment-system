@@ -98,6 +98,7 @@ db.add_all(questions)
 db.commit()
 
 # Attribute the seeded bank so ownership rules have something to act on.
+exam_office = db.query(User).filter(User.staff_id == "EXO001").first()
 rao = db.query(User).filter(User.staff_id == "CS204").first()
 sharma = db.query(User).filter(User.staff_id == "CS311").first()
 for q in questions:
@@ -126,42 +127,49 @@ papers = [
         created_by=sharma.id,
     ),
 ]
+# An adaptive paper drawing on the whole bank, so the selection has range to
+# work with. Both examiners' questions are in the pool, which is why the exam
+# office owns it.
+adaptive_paper = Assessment(
+    title="Placement Screening \u2014 Adaptive",
+    description="Adaptive paper. Questions are chosen based on how you are performing, so no two candidates sit the same sequence.",
+    duration_minutes=30,
+    question_ids=[q.id for q in questions],
+    mode="adaptive",
+    adaptive_max_questions=5,
+    adaptive_target_se=0.45,
+    created_by=exam_office.id,
+)
+papers.append(adaptive_paper)
+
 db.add_all(papers)
 db.commit()
 
 # Guard against the seed drifting out of step with the rule the API enforces.
 for paper in papers:
+    if paper.created_by == exam_office.id:
+        continue   # the exam office may draw on every subject
     owned = {q.id for q in questions if q.created_by == paper.created_by}
     stray = set(paper.question_ids) - owned
     assert not stray, f"'{paper.title}' contains questions owned by another examiner: {stray}"
 
-# Issue demo exam codes so the candidate portal is usable straight away.
-from datetime import datetime, timedelta, timezone
-from app.models import ExamAccessCode
+# No exam codes are seeded, deliberately.
+#
+# Pre-baking a fixed code like "RAO-2025" contradicts the model the rest of the
+# system enforces: codes are randomly generated, single-use, and issued by a
+# person. A permanent-looking one sitting in the seed file invites exactly the
+# question it cannot answer. To sit a paper, sign in as staff and issue a code
+# from the Candidates page, which is the real flow and takes two clicks.
 
-valid_until = datetime.now(timezone.utc) + timedelta(days=365)
-
-# A code admits one candidate to one paper, so every student sitting both papers
-# needs one code per paper.
-demo_codes = {
-    papers[0].id: {"21BCS1042": "RAO-2025", "21BCS1043": "RAO-2026", "21BCS1044": "RAO-2027"},
-    papers[1].id: {"21BCS1042": "SHA-2025", "21BCS1043": "SHA-2026", "21BCS1044": "SHA-2027"},
-}
-for paper_id, codes in demo_codes.items():
-    for enrollment, code in codes.items():
-        db.add(ExamAccessCode(
-            assessment_id=paper_id, enrollment_no=enrollment,
-            code_hash=hash_password(code), valid_until=valid_until,
-        ))
-db.commit()
-
-print("Seeded 3 staff, 3 candidates, 6 questions, 2 assessments.\n")
+print("Seeded 3 staff, 3 candidates, 6 questions, 3 assessments.\n")
 print("  Staff portal      /#/admin   (staff ID or email)")
 print("    EXO001  / control123   Exam Office  (controller - sees everything)")
 print("    CS204   / teach123     Dr. Rao      teaches Algorithms, Data Structures")
 print("    CS311   / teach123     Prof. Sharma teaches Databases, System Design\n")
-print("  Candidate portal  /#/login   (one code per paper)")
+print("  Candidates enrolled: 21BCS1042, 21BCS1043, 21BCS1044")
+print("  They hold no password. To sit a paper, sign in as staff above,")
+print("  open Candidates, select a student and generate a code.\n")
+print("  Papers:")
 for paper in papers:
-    print(f"    {paper.title}")
-    for enrollment, code in demo_codes[paper.id].items():
-        print(f"      {enrollment} / {code}")
+    kind = "adaptive" if paper.mode == "adaptive" else "fixed"
+    print(f"    {paper.title}  ({kind})")

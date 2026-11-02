@@ -93,12 +93,34 @@ def attempt_analytics(
         for skill, data in sorted(buckets.items())
     ]
 
-    peers = db.scalars(
-        select(Attempt.total_score).where(
-            Attempt.assessment_id == attempt.assessment_id, Attempt.status == "submitted"
-        )
-    ).all()
-    percentile = _percentile(attempt.total_score, list(peers))
+    # Ranking depends on the paper type. Two candidates on an adaptive paper are
+    # served different questions worth different marks, so their raw scores are
+    # not on a common scale and comparing them is meaningless - 60% of an easier
+    # five questions is not 60% of a harder five. The ability estimate exists
+    # precisely because it *is* comparable: it accounts for which items were
+    # asked. On a fixed paper everyone sat the same questions, so the raw score
+    # is the right basis.
+    paper = db.get(Assessment, attempt.assessment_id)
+    adaptive_paper = bool(paper and paper.mode == "adaptive")
+
+    if adaptive_paper:
+        peers = db.scalars(
+            select(Attempt.ability).where(
+                Attempt.assessment_id == attempt.assessment_id,
+                Attempt.status == "submitted",
+            )
+        ).all()
+        percentile = _percentile(attempt.ability, list(peers))
+        ranked_on = "ability"
+    else:
+        peers = db.scalars(
+            select(Attempt.total_score).where(
+                Attempt.assessment_id == attempt.assessment_id,
+                Attempt.status == "submitted",
+            )
+        ).all()
+        percentile = _percentile(attempt.total_score, list(peers))
+        ranked_on = "score"
 
     weakest = sorted(skills, key=lambda s: s["proficiency"])[:3]
     return {
@@ -107,7 +129,16 @@ def attempt_analytics(
         "max_score": attempt.max_score,
         "percentage": round(100 * attempt.total_score / attempt.max_score, 1) if attempt.max_score else 0.0,
         "percentile": percentile,
+        "ranked_on": ranked_on,
+        "adaptive_paper": adaptive_paper,
         "cohort_size": len(peers),
+        "adaptive": ({
+            "ability_percent": __import__("app.evaluation.adaptive", fromlist=["x"]).to_percentage(attempt.ability),
+            "ability_logit": attempt.ability,
+            "precision": attempt.ability_se,
+            "stop_reason": attempt.stop_reason,
+            "questions_served": len(attempt.answers),
+        } if attempt.stop_reason else None),
         "integrity_flags": attempt.integrity_flags,
         "integrity": {
             "total": len(events),

@@ -174,15 +174,7 @@ export default function Candidates() {
   )
 }
 
+/** Inline notice. Colour lives in the stylesheet so both themes stay correct. */
 function Banner({ tone, children }) {
-  const map = {
-    alert: ['var(--alert)', 'var(--alert-10)', '#EBC9C6'],
-    verdict: ['var(--verdict)', 'var(--verdict-10)', '#BFDED3'],
-  }
-  const [fg, bg, border] = map[tone]
-  return (
-    <div className="small" style={{ color: fg, background: bg, border: `1px solid ${border}`, borderRadius: 'var(--r)', padding: '.6rem .8rem' }}>
-      {children}
-    </div>
-  )
+  return <div className={`notice notice-${tone}`}>{children}</div>
 }

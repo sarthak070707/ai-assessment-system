@@ -82,6 +82,11 @@ class Question(Base):
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
+    # Difficulty on the logit scale, for adaptive selection. Normally derived
+    # from the label; set explicitly once an item has been calibrated against
+    # real responses, at which point the measurement beats the label.
+    difficulty_b: Mapped[float | None] = mapped_column(Float, nullable=True)
+
     author: Mapped["User | None"] = relationship()
 
 
@@ -93,6 +98,14 @@ class Assessment(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     duration_minutes: Mapped[int] = mapped_column(Integer, default=45)
     question_ids: Mapped[list] = mapped_column(JSON, default=list)
+
+    # "fixed"    - every candidate sits the same questions, navigable freely.
+    # "adaptive" - question_ids is a pool; each candidate is served a sequence
+    #              chosen from it based on how they are performing.
+    mode: Mapped[str] = mapped_column(String(20), default="fixed")
+    adaptive_max_questions: Mapped[int] = mapped_column(Integer, default=10)
+    adaptive_target_se: Mapped[float] = mapped_column(Float, default=0.4)
+
     is_published: Mapped[bool] = mapped_column(Boolean, default=True)
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
@@ -132,6 +145,13 @@ class Attempt(Base):
     # other submission for the same question.
     draft_answers: Mapped[list | None] = mapped_column(JSON, nullable=True)
     draft_saved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # Adaptive state. Ability is on the logit scale; the standard error is what
+    # decides when the paper has measured precisely enough to stop.
+    ability: Mapped[float] = mapped_column(Float, default=0.0)
+    ability_se: Mapped[float] = mapped_column(Float, default=1.0)
+    served_question_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    stop_reason: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     user: Mapped["User"] = relationship(back_populates="attempts")
     answers: Mapped[list["Answer"]] = relationship(

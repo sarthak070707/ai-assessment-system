@@ -1,5 +1,6 @@
 import { Link, NavLink, Navigate, Outlet, useNavigate } from 'react-router-dom'
 import { getUser, signOut } from '../api.js'
+import ThemeToggle from './ThemeToggle.jsx'
 
 export default function Shell() {
   const user = getUser()
@@ -22,7 +23,6 @@ export default function Shell() {
             <span style={{ fontFamily: 'var(--display)', fontWeight: 700, letterSpacing: '-.02em' }}>
               {user?.role === 'controller' ? 'Exam office' : isStaff ? 'Workspace' : 'Assessment'}
             </span>
-            <span className="mono muted" style={{ marginLeft: 8, fontSize: '.7rem' }}>v1.0</span>
           </Link>
 
           <nav className="row" style={{ gap: '1.25rem' }}>
@@ -37,6 +37,7 @@ export default function Shell() {
                 ? <span className="mono">{user.enrollment_no}</span>
                 : <>{user?.full_name}{user?.staff_id && <span className="mono"> · {user.staff_id}</span>}</>}
             </span>
+            <ThemeToggle />
             <button className="btn-ghost" onClick={() => { const staff = isStaff; signOut(); navigate('/welcome') }}>
               Sign out
             </button>

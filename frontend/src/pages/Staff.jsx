@@ -61,7 +61,7 @@ export default function Staff() {
 
       {issued && (
         <section className="panel stack" style={{ padding: '1.25rem', gap: '.5rem', borderLeft: '3px solid var(--signal)' }}>
-          <span className="eyebrow" style={{ color: '#8A5610' }}>Temporary password</span>
+          <span className="eyebrow" style={{ color: 'var(--signal-tx)' }}>Temporary password</span>
           <p className="small" style={{ margin: 0 }}>
             Give this to <strong>{issued.full_name}</strong> ({issued.staff_id}). They must change it on
             first sign-in. It is shown once and cannot be looked up again.
@@ -185,15 +185,7 @@ function Field({ label, children }) {
   )
 }
 
+/** Inline notice. Colour lives in the stylesheet so both themes stay correct. */
 function Banner({ tone, children }) {
-  const map = {
-    alert: ['var(--alert)', 'var(--alert-10)', '#EBC9C6'],
-    verdict: ['var(--verdict)', 'var(--verdict-10)', '#BFDED3'],
-  }
-  const [fg, bg, border] = map[tone]
-  return (
-    <div className="small" style={{ color: fg, background: bg, border: `1px solid ${border}`, borderRadius: 'var(--r)', padding: '.6rem .8rem' }}>
-      {children}
-    </div>
-  )
+  return <div className={`notice notice-${tone}`}>{children}</div>
 }

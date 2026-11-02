@@ -157,6 +157,12 @@ class ImportedQuestion(BaseModel):
     difficulty: str
     warnings: list[str] = []
 
+    # Generation only. The reference solution is what verifies the test cases,
+    # and is shown to the examiner so they can see what was checked against.
+    starter_code: str | None = None
+    reference_solution: str | None = None
+    test_cases: list[dict] | None = None
+
 
 class ImportPreviewOut(BaseModel):
     questions: list[ImportedQuestion]
@@ -165,6 +171,16 @@ class ImportPreviewOut(BaseModel):
     source_characters: int
     backend: str = "rules"
     note: str = ""
+
+
+class GenerateIn(BaseModel):
+    """Write questions from a syllabus rather than extracting them from a paper."""
+    syllabus: str
+    skill: str
+    kind: str = "mcq"
+    difficulty: str = "medium"
+    count: int = 5
+    max_score: float = 5.0
 
 
 class ImportCommitIn(BaseModel):
@@ -178,6 +194,9 @@ class AssessmentCreate(BaseModel):
     description: str = ""
     duration_minutes: int = 45
     question_ids: list[int]
+    mode: str = "fixed"
+    adaptive_max_questions: int = 10
+    adaptive_target_se: float = 0.4
 
 
 class AssessmentOut(BaseModel):
@@ -197,6 +216,9 @@ class AssessmentOut(BaseModel):
     description: str
     duration_minutes: int
     question_ids: list
+    mode: str = "fixed"
+    adaptive_max_questions: int = 10
+    adaptive_target_se: float = 0.4
     is_published: bool
 
 
@@ -213,6 +235,26 @@ class SubmitIn(BaseModel):
 
 class DraftIn(BaseModel):
     answers: list[AnswerIn]
+
+
+class AdaptiveAnswerIn(BaseModel):
+    """One answer in an adaptive paper, graded on arrival."""
+    question_id: int
+    response_text: str = ""
+    selected_option: int | None = None
+    seconds_spent: int = 0
+
+
+class AdaptiveStep(BaseModel):
+    """What happens after an adaptive answer: another question, or the end."""
+    finished: bool
+    question: QuestionOut | None = None
+    answered: int
+    max_questions: int
+    ability_percent: float
+    precision: float
+    stop_reason: str | None = None
+    attempt_id: int
 
 
 class DraftOut(BaseModel):

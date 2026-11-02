@@ -60,7 +60,7 @@ function ExaminerOverview() {
 
       {queue.length > 0 && (
         <div className="panel" style={{ padding: '1rem 1.25rem', borderLeft: '3px solid var(--signal)' }}>
-          <span className="eyebrow" style={{ color: '#8A5610' }}>Needs a decision</span>
+          <span className="eyebrow" style={{ color: 'var(--signal-tx)' }}>Needs a decision</span>
           <p className="small" style={{ margin: '.35rem 0 .6rem' }}>
             {queue.length} answer{queue.length === 1 ? '' : 's'} the grader was not confident enough to score.
             Candidates see these totals as provisional until you confirm them.
@@ -123,9 +123,11 @@ function CandidateHome() {
     <div className="stack" style={{ gap: '2rem' }}>
       <div>
         <span className="eyebrow">Candidate</span>
-        <h1 style={{ marginTop: '.3rem' }}>Available assessments</h1>
+        <h1 style={{ marginTop: '.3rem' }}>
+          {assessments.length === 1 ? 'Your exam' : 'Available assessments'}
+        </h1>
         <p className="muted small" style={{ marginTop: '.4rem' }}>
-          Your exam code opens one paper, once. Others are listed but closed to this sitting.
+          Your exam code opens this paper, once. Sitting another requires its own code.
         </p>
       </div>
 
@@ -138,7 +140,10 @@ function CandidateHome() {
             opacity: a.opens_with_your_code ? 1 : 0.55,
           }}>
             <div>
-              <h2>{a.title}</h2>
+              <div className="row" style={{ gap: '.5rem', flexWrap: 'wrap' }}>
+                <h2>{a.title}</h2>
+                {a.mode === 'adaptive' && <span className="tag tag-primary">adaptive</span>}
+              </div>
               <p className="small muted" style={{ margin: '.3rem 0 .5rem' }}>{a.description}</p>
               <span className="mono small muted">
                 {a.question_ids.length} questions · {a.duration_minutes} min
@@ -171,7 +176,10 @@ function CandidateHome() {
         ))}
         {!assessments.length && !error && (
           <div className="panel" style={{ padding: '2rem', textAlign: 'center' }}>
-            <p className="muted">No assessments published yet. An examiner needs to create one.</p>
+            <p style={{ margin: 0, fontWeight: 500 }}>Nothing to sit right now</p>
+            <p className="muted small" style={{ margin: '.35rem 0 0' }}>
+              Your code does not open a published paper. Ask your invigilator.
+            </p>
           </div>
         )}
       </div>

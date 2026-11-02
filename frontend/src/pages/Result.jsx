@@ -27,9 +27,25 @@ export default function Result() {
       </div>
 
       <div className="panel" style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1.5rem' }}>
-        <Stat label="Score" value={`${data.total_score}`} sub={`of ${data.max_score}`} />
-        <Stat label="Percentage" value={`${data.percentage}%`} accent="var(--primary)" />
-        <Stat label="Percentile" value={`${data.percentile}`} sub={`in a cohort of ${data.cohort_size}`} />
+        {data.adaptive_paper ? (
+          <>
+            <Stat
+              label="Estimated level" value={`${data.adaptive?.ability_percent ?? '—'}%`}
+              sub="comparable across candidates" accent="var(--primary)"
+            />
+            <Stat
+              label="Percentile" value={`${data.percentile}`}
+              sub={`by level, in a cohort of ${data.cohort_size}`}
+            />
+            <Stat label="Marks" value={`${data.total_score}`} sub={`of ${data.max_score} served`} />
+          </>
+        ) : (
+          <>
+            <Stat label="Score" value={`${data.total_score}`} sub={`of ${data.max_score}`} />
+            <Stat label="Percentage" value={`${data.percentage}%`} accent="var(--primary)" />
+            <Stat label="Percentile" value={`${data.percentile}`} sub={`in a cohort of ${data.cohort_size}`} />
+          </>
+        )}
         <Stat
           label="Integrity flags" value={`${data.integrity_flags}`}
           accent={data.integrity_flags > 0 ? 'var(--signal)' : undefined}
@@ -39,6 +55,39 @@ export default function Result() {
           accent={flagged.length > 0 ? 'var(--signal)' : undefined}
         />
       </div>
+
+      {data.adaptive && (
+        <section className="panel stack" style={{ padding: '1.25rem', gap: '.75rem' }}>
+          <div className="spread">
+            <h2>Adaptive measurement</h2>
+            <span className="tag tag-primary">adaptive paper</span>
+          </div>
+          <p className="small muted" style={{ margin: 0 }}>
+            Questions were chosen from how you were performing, so this paper measured your level in{' '}
+            {data.adaptive.questions_served} questions rather than asking everything.
+          </p>
+          <p className="small muted" style={{ margin: 0 }}>
+            <strong style={{ color: 'var(--ink-2)' }}>Your marks are not comparable with another
+            candidate's.</strong> You were served different questions worth different totals, so{' '}
+            {data.percentage}% here does not mean the same as {data.percentage}% on someone else's
+            paper. The estimated level does account for which questions were asked, which is why the
+            ranking above uses it.
+          </p>
+          <div className="row" style={{ gap: '2.5rem', flexWrap: 'wrap', marginTop: '.25rem' }}>
+            <div className="stack" style={{ gap: '.2rem' }}>
+              <span className="eyebrow">Precision</span>
+              <span className="mono" style={{ fontSize: '1.9rem', fontWeight: 600, lineHeight: 1.1 }}>
+                ±{data.adaptive.precision}
+              </span>
+              <span className="small muted">
+                {data.adaptive.stop_reason === 'precision'
+                  ? 'Stopped once measured precisely enough.'
+                  : 'Stopped at the question limit.'}
+              </span>
+            </div>
+          </div>
+        </section>
+      )}
 
       {data.integrity?.total > 0 && (
         <section className="panel stack" style={{ padding: '1.25rem', gap: '.75rem', borderLeft: '3px solid var(--signal)' }}>
@@ -74,7 +123,7 @@ export default function Result() {
 
       {flagged.length > 0 && (
         <div className="panel" style={{ padding: '1rem 1.25rem', borderLeft: '3px solid var(--signal)' }}>
-          <span className="eyebrow" style={{ color: '#8A5610' }}>Provisional score</span>
+          <span className="eyebrow" style={{ color: 'var(--signal-tx)' }}>Provisional score</span>
           <p className="small" style={{ margin: '.35rem 0 0' }}>
             {flagged.length} {flagged.length === 1 ? 'answer' : 'answers'} scored below the confidence
             threshold and {flagged.length === 1 ? 'is' : 'are'} waiting on an examiner. Your total may change.
@@ -162,7 +211,7 @@ export default function Result() {
                   gap: '.25rem', marginTop: '.7rem', paddingTop: '.7rem',
                   borderTop: '1px solid var(--rule-soft)',
                 }}>
-                  <span className="eyebrow" style={{ color: '#8A5610' }}>
+                  <span className="eyebrow" style={{ color: 'var(--signal-tx)' }}>
                     {t.flags.length} integrity {t.flags.length === 1 ? 'event' : 'events'} on this question
                   </span>
                   {t.flags.map((f, fi) => (

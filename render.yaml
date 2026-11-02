@@ -1,0 +1,41 @@
+# Render blueprint. Create the service from this file, or set the same values
+# by hand in the dashboard.
+services:
+  - type: web
+    name: assessment-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: ./start.sh
+    healthCheckPath: /api/health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+
+      # Generated once by Render and kept across deploys. With ENVIRONMENT set
+      # to production the service refuses to start without it.
+      - key: JWT_SECRET
+        generateValue: true
+
+      # The deployed frontend's origin, no trailing slash. Must be set by hand
+      # once Vercel gives you the URL, or every API call is blocked by CORS.
+      - key: ALLOWED_ORIGINS
+        sync: false
+
+      # Optional. Without it, question import falls back to pattern matching and
+      # syllabus generation is unavailable.
+      - key: GROQ_API_KEY
+        sync: false
+
+      - key: DATABASE_URL
+        fromDatabase:
+          name: assessment-db
+          property: connectionString
+
+databases:
+  # Free Postgres. Without it the service would use SQLite on the container
+  # disk, which Render wipes on every restart - taking every account and result
+  # with it.
+  - name: assessment-db
+    plan: free

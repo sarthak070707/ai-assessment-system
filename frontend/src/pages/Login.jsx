@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import ThemeToggle from '../components/ThemeToggle.jsx'
+import Footer from '../components/Footer.jsx'
 import { api } from '../api.js'
 
 /** Candidate portal. Enrolment number plus the single-use code for today's paper. */
@@ -26,9 +28,13 @@ export default function Login() {
   }
 
   return (
-    <div className="row" style={{ minHeight: '100vh', justifyContent: 'center', padding: '2rem' }}>
+    <div className="stack" style={{ minHeight: '100vh' }}>
+      <div className="row" style={{ flex: 1, justifyContent: 'center', padding: '2rem' }}>
       <div style={{ width: '100%', maxWidth: 400 }}>
-        <Link to="/welcome" className="eyebrow" style={{ textDecoration: 'none' }}>← Back</Link>
+        <div className="spread">
+          <Link to="/welcome" className="eyebrow" style={{ textDecoration: 'none' }}>← Back</Link>
+          <ThemeToggle tone="quiet" />
+        </div>
         <div style={{ height: '.6rem' }} />
         <span className="eyebrow">Examination portal</span>
         <h1 style={{ marginTop: '.35rem' }}>Sign in to your exam</h1>
@@ -58,12 +64,7 @@ export default function Login() {
           </label>
 
           {error && (
-            <div className="small" style={{
-              color: 'var(--alert)', background: 'var(--alert-10)',
-              border: '1px solid #EBC9C6', borderRadius: 'var(--r)', padding: '.5rem .65rem',
-            }}>
-              {error}
-            </div>
+            <div className="notice notice-alert">{error}</div>
           )}
 
           <button className="btn-primary" onClick={submit} disabled={busy}>
@@ -76,6 +77,9 @@ export default function Login() {
           codes cannot be recovered once issued.
         </p>
       </div>
+      </div>
+
+      <Footer bordered={false} />
     </div>
   )
 }

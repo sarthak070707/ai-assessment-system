@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import ThemeToggle from '../components/ThemeToggle.jsx'
+import Footer from '../components/Footer.jsx'
 import { api } from '../api.js'
 
 /** Examiner portal, deliberately distinct from the candidate entrance. */
@@ -22,15 +24,22 @@ export default function AdminLogin() {
     }
   }
 
+  // No inverted panel: with two themes an inverted surface would be
+  // white-on-white in one of them. The portals are told apart by their label and
+  // their credential fields, which is the honest distinction anyway - the real
+  // separation is require_staff on the server, not the paint.
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--ink)' }}>
-      <div className="row" style={{ minHeight: '100vh', justifyContent: 'center', padding: '2rem' }}>
+    <div className="stack" style={{ minHeight: '100vh' }}>
+      <div className="row" style={{ flex: 1, justifyContent: 'center', padding: '2rem' }}>
         <div style={{ width: '100%', maxWidth: 380 }}>
-          <Link to="/welcome" className="eyebrow" style={{ textDecoration: 'none', color: '#6B7480' }}>← Back</Link>
+          <div className="spread">
+            <Link to="/welcome" className="eyebrow" style={{ textDecoration: 'none' }}>← Back</Link>
+            <ThemeToggle tone="quiet" />
+          </div>
           <div style={{ height: '.6rem' }} />
-          <span className="eyebrow" style={{ color: '#8C96A5' }}>Staff access</span>
-          <h1 style={{ marginTop: '.35rem', color: '#fff' }}>Examiner portal</h1>
-          <p className="small" style={{ color: '#8C96A5', marginTop: '.4rem', marginBottom: '1.5rem' }}>
+          <span className="eyebrow" style={{ color: 'var(--ink-3)' }}>Staff access</span>
+          <h1 style={{ marginTop: '.35rem' }}>Examiner portal</h1>
+          <p className="small muted" style={{ marginTop: '.4rem', marginBottom: '1.5rem' }}>
             Question bank, assessment scheduling, exam codes and score review.
           </p>
 
@@ -49,12 +58,7 @@ export default function AdminLogin() {
             </label>
 
             {error && (
-              <div className="small" style={{
-                color: 'var(--alert)', background: 'var(--alert-10)',
-                border: '1px solid #EBC9C6', borderRadius: 'var(--r)', padding: '.5rem .65rem',
-              }}>
-                {error}
-              </div>
+              <div className="notice notice-alert">{error}</div>
             )}
 
             <button className="btn-primary" onClick={submit} disabled={busy}>
@@ -65,6 +69,8 @@ export default function AdminLogin() {
 
         </div>
       </div>
+
+      <Footer bordered={false} />
     </div>
   )
 }

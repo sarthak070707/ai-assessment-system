@@ -17,5 +17,6 @@ python-docx>=1.1
 # automatically - check GET /api/health to see which backend is live.
 # sentence-transformers>=3.3
 
-# Optional: PostgreSQL driver
-# psycopg[binary]>=3.2
+# PostgreSQL driver. Unused with the default SQLite, but required by any
+# deployment pointing DATABASE_URL at Postgres, so not optional there.
+psycopg[binary]>=3.2
