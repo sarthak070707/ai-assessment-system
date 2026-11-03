@@ -1,12 +1,55 @@
-# Online Technical Assessment System with AI-Based Evaluation and Analytics
+# Online Technical Assessment System
 
-A web platform that creates, delivers and grades technical assessments — MCQ, coding and
-descriptive — using AI evaluation, and reports skill-level diagnostics for candidates and examiners.
+An examination platform that sets, delivers and grades technical papers — multiple choice, coding
+and descriptive — and reports skill-level diagnostics to candidates and examiners.
 
-The design principle throughout: **the AI grades, but it also reports how sure it is.**
-Low-confidence scores are escalated to a human instead of being quietly accepted.
+**[Live demo](https://ai-assessment-system-sepia.vercel.app)** · sign in as `EXO001` / `control123`
+
+Built by **Sarthak Arya** and **Satyam Verma** · Electronics Engineering, MITS Gwalior
+
+> The backend runs on a free tier and sleeps after a quarter of an hour idle. The first request
+> wakes it, which can take up to a minute. After that it is quick.
 
 ---
+
+## The idea
+
+**The AI grades, but it also reports how sure it is.** Scores landing in an uncertain band are not
+awarded — they are flagged, queued for the examiner who set the paper, and shown to the candidate as
+provisional until a human decides.
+
+That matters more than the accuracy of the grader. A grader returning a confident wrong mark is more
+damaging than one that defers, and the same reasoning shapes every use of a language model here:
+validate its output against a schema, repair its format, keep a person in the loop, and be correct
+whether it behaves or not.
+
+## What it does
+
+**Candidates** sign in with an enrolment number and a single-use code issued by an invigilator, sit
+a timed paper, and get a score with a per-skill breakdown. Work saves automatically, so a crash
+costs seconds rather than a paper.
+
+**Examiners** each have a private workspace bounded by the subjects they teach. They write questions,
+build papers, issue codes and adjudicate flagged answers. Another examiner's question bank is not
+merely uneditable — it is invisible, because an unsat bank *is* the exam paper.
+
+**The exam office** creates staff accounts, assigns subjects, and sees everything.
+
+## Worth a look
+
+| | |
+|---|---|
+| **Confidence-based escalation** | Uncertain scores go to a human instead of being guessed at |
+| **Adaptive papers** | Rasch-model item selection; measured a strong candidate at 59.9% and a weak one at 19.1% in five questions from the same pool |
+| **Sandboxed execution** | Candidate code runs behind an AST guard and process limits; seven classes of hostile submission tested |
+| **Structural plagiarism detection** | Catches a copy with every variable renamed (1.00) while a different algorithm scores 0.10 |
+| **Question import and generation** | Reads a PDF paper, or writes questions from a syllabus — with generated coding questions executed against their own reference solution before an examiner sees them |
+| **105 tests** | Grading, access control, exam lifecycle, adaptive selection, injection validation |
+
+## Built with
+
+FastAPI · React · SQLAlchemy · PostgreSQL · Groq. Every backend dependency is pure Python, so
+installation needs no compiler.
 
 ## Run it
 
@@ -77,6 +120,16 @@ Interactive API docs: **http://localhost:8000/docs** — every endpoint is calla
 which is the fastest way to demo the backend in a viva.
 
 ---
+
+## Deploying
+
+Backend on Render, frontend on Vercel, both free tiers. See **[DEPLOYMENT.md](DEPLOYMENT.md)**.
+
+Three things differ from local development and each breaks silently if missed: `ALLOWED_ORIGINS`
+must name the deployed frontend or the browser blocks every API call; `VITE_API_URL` must name the
+backend and is baked in at build time; and `ENVIRONMENT=production` makes `JWT_SECRET` mandatory,
+because the development fallback is published in this repository and would let anyone forge a token
+for any account.
 
 ## Architecture
 
