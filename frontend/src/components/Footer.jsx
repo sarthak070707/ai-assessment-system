@@ -7,9 +7,6 @@
  */
 const BUILDERS = [
   { name: 'Sarthak Arya', linkedin: 'https://www.linkedin.com/in/sarthak-arya-059920303' },
-  // Replace the link below with Satyam's real profile when he has one. Until
-  // then it points at a name search, so it never lands on a stranger's page.
-  { name: 'Satyam Verma', linkedin: 'https://www.linkedin.com/search/results/people/?keywords=Satyam+Verma' },
 ]
 
 function LinkedInMark() {

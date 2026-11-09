@@ -5,7 +5,7 @@ and descriptive — and reports skill-level diagnostics to candidates and examin
 
 **[Live demo](https://ai-assessment-system-sepia.vercel.app)** · sign in as `EXO001` / `control123`
 
-Built by **Sarthak Arya** and **Satyam Verma** · Electronics Engineering, MITS Gwalior
+Built by **Sarthak Arya** · Electronics Engineering, MITS Gwalior
 
 > The backend runs on a free tier and sleeps after a quarter of an hour idle. The first request
 > wakes it, which can take up to a minute. After that it is quick.
